@@ -1,0 +1,8 @@
+/target
+*.log
+*.txt
+*.heldbak
+*.tmp
+Cargo.lock
+install
+.vscode

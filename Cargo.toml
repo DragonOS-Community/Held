@@ -1,0 +1,28 @@
+[package]
+name = "held"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+dragonos = []
+
+[dependencies]
+# 控制term
+crossterm = "0.27"
+lazy_static = "1.4"
+
+# 命令解析
+clap = { version = "4.4.7",features = ["derive"] }
+
+# 日志
+simplelog = "^0.12.1"
+log = "0.4"
+
+# 解析配置文件
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+
+# 定义标志位
+bitflags = "2.4.2"

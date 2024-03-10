@@ -1,0 +1,9 @@
+line:
+  number:
+    enable:
+      true
+  highlight:
+    enable:
+      true
+    color:
+      0x00ffff

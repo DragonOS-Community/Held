@@ -5,16 +5,21 @@ use std::{
 
 use super::buffer::EditBuffer;
 
+use std::path::PathBuf;
+
 pub const BAK_SUFFIX: &'static str = ".heldbak";
 
 pub struct FileManager {
     name: String,
     file: File,
+    is_first_open: bool,
     bak: Option<File>,
 }
 
 impl FileManager {
     pub fn new(file_path: String) -> io::Result<Self> {
+        let ifo_flag = !PathBuf::from(file_path.clone()).exists();
+
         let file = File::options()
             .write(true)
             .read(true)
@@ -23,6 +28,7 @@ impl FileManager {
 
         Ok(Self {
             file,
+            is_first_open: ifo_flag,
             name: file_path,
             bak: None,
         })
@@ -81,6 +87,21 @@ impl FileManager {
             fs::remove_file(format!("{}{}", self.name, BAK_SUFFIX))?;
         }
 
+        Ok(())
+    }
+
+    pub fn is_first_open(&mut self) -> bool {
+        self.is_first_open
+    }
+
+    pub fn delete_files(&mut self) -> io::Result<()> {
+        if !self.name.is_empty() {
+            fs::remove_file(self.name.clone())?;
+        }
+
+        if self.bak.is_some() {
+            fs::remove_file(format!("{}{}", self.name, BAK_SUFFIX))?;
+        }
         Ok(())
     }
 }

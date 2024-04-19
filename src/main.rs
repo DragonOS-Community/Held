@@ -19,7 +19,7 @@ fn main() -> io::Result<()> {
 
     let setting;
 
-    let file = File::open("config.yam");
+    let file = File::open("config.yaml");
     if file.is_err() {
         setting = DeserializeAppOption::default();
     } else {

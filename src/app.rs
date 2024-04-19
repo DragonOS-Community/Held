@@ -52,6 +52,8 @@ impl Application {
                 if store {
                     let buffer = &self.ui.core.lock().unwrap().buffer;
                     self.file_manager.store(buffer)?
+                } else if self.file_manager.is_first_open() {
+                    self.file_manager.delete_files()?;
                 }
             }
             Err(_) => {

@@ -213,8 +213,13 @@ impl EditBuffer {
     #[inline]
     pub fn insert_char(&self, ch: u8, x: u16, y: u16) {
         let mut buf = self.buf.write().unwrap();
-        let line = buf.get_mut(self.offset() + y as usize).unwrap();
-        line.insert(x as usize, ch);
+        if buf.len() > 0 {
+            let line = buf.get_mut(self.offset() + y as usize).unwrap();
+            line.insert(x as usize, ch);
+        } else {
+            buf.push(LineBuffer::new(vec![ch]));
+        }
+        
     }
 
     #[inline]
@@ -352,6 +357,40 @@ impl EditBuffer {
         }
 
         count
+    }
+    
+    pub fn delete_line(&self, y: usize) {
+        let mut buffer = self.buf.write().unwrap();
+        let line = buffer.get(y).unwrap();
+        if line.data.is_empty() {
+            return;
+        }
+
+        if !line.flags.contains(LineState::LOCKED) {
+            buffer.remove(y);
+        }
+    }
+    
+    pub fn delete_until_line_beg(&self, x: usize, y: usize) -> Option<usize>{
+        let mut buffer = self.buf.write().unwrap();
+        let line = buffer.get_mut(y).unwrap();
+        
+        if line.data.len() < 2 {
+            return None;
+        }
+        line.data.drain(0..x);
+        return Some(x - 1);
+    }
+    
+    pub fn delete_until_endl(&self, x: usize, y: usize) -> Option<usize>{
+        let mut buffer = self.buf.write().unwrap();
+        let line = buffer.get_mut(y).unwrap();
+        if line.data.len() < 2 {
+            return None;
+        }
+        line.data.drain(x..);
+        line.data.push(b'\n');
+        return Some(x);
     }
 }
 

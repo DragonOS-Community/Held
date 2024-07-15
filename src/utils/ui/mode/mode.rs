@@ -1,9 +1,10 @@
+use std::io::Read;
 use std::sync::atomic::Ordering;
 use std::sync::{Mutex, MutexGuard};
 use std::{fmt::Debug, io};
 
 use crate::config::lastline_cmd::LastLineCommand;
-use crate::utils::buffer::LineState;
+use crate::utils::buffer::{self, LineState};
 #[cfg(feature = "dragonos")]
 use crate::utils::input::KeyEventType;
 
@@ -183,6 +184,69 @@ impl Command {
 
         Ok(())
     }
+
+    fn jump_to_first_char(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        // 移动到行第一个单词的首字母
+        let first_char = {
+            let line = ui.buffer.get_line(ui.cursor.y()).data;
+            let mut idx = 0;
+            for char in line {
+                if char == b" "[0] {
+                    idx += 1;
+                } else if char == b"\t"[0] {
+                    idx += 4;
+                }
+            }
+            idx
+        };
+        ui.cursor.move_to_columu(first_char)?;
+        return Ok(WarpUiCallBackType::None);
+    }
+
+    fn do_delete_on_d_clicked(
+        &self,
+        ui: &mut MutexGuard<UiCore>,
+    ) -> io::Result<WarpUiCallBackType> {
+        let buf: &mut [u8] = &mut [0; 8];
+        let _ = io::stdin().read(buf)?; 
+    
+        match buf[0] {
+            b'd' => {
+                TermManager::clear_under_cursor()?;
+                let y = ui.cursor.y() as usize;
+                ui.buffer.delete_line(y); 
+                let count = ui.buffer.line_count() - y as usize - 1;
+                ui.render_content(y as u16, count)?;
+            }
+            b'0' => {
+                let x = ui.cursor.x() as usize;
+                let y = ui.cursor.y() as usize;
+                match ui.buffer.delete_until_line_beg(x, y) {
+                    Some(..) => {
+                        // 文本变动重新渲染
+                        ui.cursor.move_to_columu(0)?;
+                        ui.render_content(y as u16, 1)?;
+                    }
+                    None => {}
+                };
+            }
+            b'$' => {
+                let x = ui.cursor.x() as usize;
+                let y = ui.cursor.y() as usize;
+                match ui.buffer.delete_until_endl(x, y) {
+                    Some(..) => {
+                        ui.cursor.move_left(1)?;
+                        ui.render_content(y as u16, 1)?;
+                    }
+                    None => {}
+                }
+            }
+            _ => {}
+        }
+    
+        Ok(WarpUiCallBackType::None)
+    
+    }
 }
 
 impl KeyEventCallback for Command {
@@ -218,7 +282,19 @@ impl KeyEventCallback for Command {
                 return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
             }
 
-            b"l" | b"L" => {
+            // hjkl 与 Vim 的效果一致
+            b"h" => self.left(ui),
+
+            // 向下
+            b"j" => self.down(ui),
+
+            // 向上
+            b"k" => self.up(ui),
+
+            //  向右
+            b"l" => self.right(ui),
+
+            b"L" => {
                 // 设置当前行lock
                 let flag = ui.buffer.line_flags(ui.cursor.y());
                 let offset = ui.buffer.offset();
@@ -257,7 +333,7 @@ impl KeyEventCallback for Command {
                 return Ok(WarpUiCallBackType::None);
             }
 
-            b"w" | b"W" => {
+            b"W" => {
                 // 跳转到下一个flag行
                 self.jump_to_next_flag(ui, LineState::FLAGED)?;
                 return Ok(WarpUiCallBackType::None);
@@ -272,6 +348,23 @@ impl KeyEventCallback for Command {
                 self.jump_to_next_flag(ui, LineState::LOCKED)?;
                 return Ok(WarpUiCallBackType::None);
             }
+
+            b"0" => {
+                // 移动到行首
+                ui.cursor.move_to_columu(0)?;
+                return Ok(WarpUiCallBackType::None);
+            }
+
+            b"^" => self.jump_to_first_char(ui),
+
+            b"$" => {
+                // 移动到行末
+                let line_end = ui.buffer.get_linesize(ui.cursor.y()) - 1;
+                ui.cursor.move_to_columu(line_end)?;
+                return Ok(WarpUiCallBackType::None);
+            }
+            
+            b"d" => self.do_delete_on_d_clicked(ui),
 
             _ => {
                 return Ok(WarpUiCallBackType::None);

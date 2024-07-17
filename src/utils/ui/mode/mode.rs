@@ -4,7 +4,7 @@ use std::sync::{Mutex, MutexGuard};
 use std::{fmt::Debug, io};
 
 use crate::config::lastline_cmd::LastLineCommand;
-use crate::utils::buffer::{self, LineState};
+use crate::utils::buffer::LineState;
 #[cfg(feature = "dragonos")]
 use crate::utils::input::KeyEventType;
 
@@ -208,13 +208,13 @@ impl Command {
         ui: &mut MutexGuard<UiCore>,
     ) -> io::Result<WarpUiCallBackType> {
         let buf: &mut [u8] = &mut [0; 8];
-        let _ = io::stdin().read(buf)?; 
-    
+        let _ = io::stdin().read(buf)?;
+
         match buf[0] {
             b'd' => {
                 TermManager::clear_under_cursor()?;
                 let y = ui.cursor.y() as usize;
-                ui.buffer.delete_line(y); 
+                ui.buffer.delete_line(y);
                 let count = ui.buffer.line_count() - y as usize - 1;
                 ui.render_content(y as u16, count)?;
             }
@@ -243,9 +243,37 @@ impl Command {
             }
             _ => {}
         }
-    
-        Ok(WarpUiCallBackType::None)
-    
+        return Ok(WarpUiCallBackType::None);
+    }
+
+    fn jump_to_next_word(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        let x = ui.cursor.x();
+        let y = ui.cursor.y();
+        let mut left = x as usize;
+        let mut right = left;
+        let line = ui.buffer.get_line(y);
+        let linesize = ui.buffer.get_linesize(y) as usize;
+        while left <= right && right < linesize {
+            let l = line[left] as char;
+            let r = line[right] as char;
+            if !(l == ' ' || l == '\t' || l == '\n') {
+                left += 1;
+                right += 1;
+                continue;
+            }
+            if r == ' ' || l == '\t' || l == '\n' {
+                right += 1;
+            } else {
+                break;
+            }
+        }
+        if right < linesize {
+            ui.cursor.move_to_columu(right as u16)?;
+        } else {
+            self.down(ui)?;
+            ui.cursor.move_to_columu(0)?;
+        }
+        return Ok(WarpUiCallBackType::None);
     }
 }
 
@@ -333,6 +361,8 @@ impl KeyEventCallback for Command {
                 return Ok(WarpUiCallBackType::None);
             }
 
+            b"w" => self.jump_to_next_word(ui),
+
             b"W" => {
                 // 跳转到下一个flag行
                 self.jump_to_next_flag(ui, LineState::FLAGED)?;
@@ -363,7 +393,7 @@ impl KeyEventCallback for Command {
                 ui.cursor.move_to_columu(line_end)?;
                 return Ok(WarpUiCallBackType::None);
             }
-            
+
             b"d" => self.do_delete_on_d_clicked(ui),
 
             _ => {

@@ -155,7 +155,7 @@ impl EditBuffer {
 
         line.data.len() as u16
     }
-
+    
     /// 外部接口，本结构体内部方法不应该使用，因为涉及offset计算
     pub fn remove_char(&self, x: u16, y: u16) {
         let mut buf = self.buf.write().unwrap();
@@ -219,7 +219,6 @@ impl EditBuffer {
         } else {
             buf.push(LineBuffer::new(vec![ch]));
         }
-        
     }
 
     #[inline]
@@ -358,7 +357,7 @@ impl EditBuffer {
 
         count
     }
-    
+
     pub fn delete_line(&self, y: usize) {
         let mut buffer = self.buf.write().unwrap();
         let line = buffer.get(y).unwrap();
@@ -370,26 +369,26 @@ impl EditBuffer {
             buffer.remove(y);
         }
     }
-    
-    pub fn delete_until_line_beg(&self, x: usize, y: usize) -> Option<usize>{
+
+    pub fn delete_until_line_beg(&self, x: usize, y: usize) -> Option<usize> {
         let mut buffer = self.buf.write().unwrap();
         let line = buffer.get_mut(y).unwrap();
-        
+
         if line.data.len() < 2 {
             return None;
         }
         line.data.drain(0..x);
         return Some(x - 1);
     }
-    
-    pub fn delete_until_endl(&self, x: usize, y: usize) -> Option<usize>{
+
+    pub fn delete_until_endl(&self, x: usize, y: usize) -> Option<usize> {
         let mut buffer = self.buf.write().unwrap();
         let line = buffer.get_mut(y).unwrap();
-        if line.data.len() < 2 {
+        let len = line.data.len();
+        if len < 2 {
             return None;
         }
-        line.data.drain(x..);
-        line.data.push(b'\n');
+        line.data.drain(x..len - 1);
         return Some(x);
     }
 }

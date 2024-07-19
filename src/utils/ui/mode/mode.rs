@@ -1,4 +1,6 @@
+use std::borrow::BorrowMut;
 use std::io::Read;
+use std::ops::DerefMut;
 use std::sync::atomic::Ordering;
 use std::sync::{Mutex, MutexGuard};
 use std::{fmt::Debug, io};
@@ -253,25 +255,82 @@ impl Command {
         let mut right = left;
         let line = ui.buffer.get_line(y);
         let linesize = ui.buffer.get_linesize(y) as usize;
+        
+        // 搜索下一个单词的起始位置
         while left <= right && right < linesize {
-            let l = line[left] as char;
-            let r = line[right] as char;
-            if !(l == ' ' || l == '\t' || l == '\n') {
+            let lchar = line[left] as char;
+            let rchar = line[right] as char;
+            if !(lchar == ' ' || lchar == '\t') {
                 left += 1;
                 right += 1;
                 continue;
             }
-            if r == ' ' || l == '\t' || l == '\n' {
-                right += 1;
-            } else {
+            if rchar != ' ' && rchar != '\t' {
                 break;
             }
+            right += 1;
         }
+
         if right < linesize {
+            // 如果下一个单词在当前行，则移动光标到该单词的起始位置 
             ui.cursor.move_to_columu(right as u16)?;
-        } else {
+        } else if y + 1 < ui.buffer.line_count() as u16 {
+            // 如果当前行不是最后一行，则移动到下一行的开头
             self.down(ui)?;
             ui.cursor.move_to_columu(0)?;
+        } else {
+            // 如果当前行是最后一行，则移动到当前行的末尾 
+            ui.cursor.move_to_columu(linesize as u16 - 1)?;
+        }
+        return Ok(WarpUiCallBackType::None);
+    }
+    
+    fn jump_to_nextw_ending(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        let x = ui.cursor.x();
+        let y = ui.cursor.y();
+        let mut left = x as usize;
+        let mut right = left;
+        let line = ui.buffer.get_line(y);
+        let linesize = ui.buffer.get_linesize(y) as usize;
+        
+        // 如果光标已经在当前行的末尾，则尝试移动到下一行的末尾或单词末尾
+        if x as usize == linesize - 1 {
+            if y < ui.buffer.line_count() as u16 - 1 {
+                self.down(ui)?;
+                ui.cursor.move_to_columu(0)?;
+                self.jump_to_nextw_ending(ui)?;
+                return Ok(WarpUiCallBackType::None);
+            } else {
+                // 如果已经是最后一行，则保持光标在当前行的末尾  
+                ui.cursor.move_to_columu(linesize as u16 - 1)?;  
+                return Ok(WarpUiCallBackType::None);  
+            }
+        }
+        
+        // 搜索下一个单词的末尾
+        while left <= right && right < linesize {
+            let lchar = line[left] as char;
+            let rchar = line[right] as char;
+            if lchar == ' ' || lchar == '\t' {
+                left += 1;
+                right += 1;
+                continue;
+            }
+            if rchar == ' ' || rchar == '\t' {
+                if right == x as usize + 1 {
+                    left = right;
+                    continue;
+                }
+                right -= 1;
+                break;
+            }
+            right += 1;
+        }
+
+        if right < linesize {
+            ui.cursor.move_to_columu(right as u16)?;
+        } else if right == linesize {
+            ui.cursor.move_to_columu(linesize as u16 - 1)?;
         }
         return Ok(WarpUiCallBackType::None);
     }
@@ -362,6 +421,8 @@ impl KeyEventCallback for Command {
             }
 
             b"w" => self.jump_to_next_word(ui),
+            
+            b"e" => self.jump_to_nextw_ending(ui),
 
             b"W" => {
                 // 跳转到下一个flag行
@@ -395,6 +456,16 @@ impl KeyEventCallback for Command {
             }
 
             b"d" => self.do_delete_on_d_clicked(ui),
+
+            b"x" => {
+                let y = ui.cursor.y();
+                let x = ui.cursor.x();
+                if x < ui.buffer.get_linesize(y) - 1 {
+                    ui.buffer.remove_char(x, y);
+                    ui.render_content(y, 1)?;
+                }
+                return Ok(WarpUiCallBackType::None);
+            }
 
             _ => {
                 return Ok(WarpUiCallBackType::None);

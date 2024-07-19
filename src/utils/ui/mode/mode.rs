@@ -1,6 +1,4 @@
-use std::borrow::BorrowMut;
 use std::io::Read;
-use std::ops::DerefMut;
 use std::sync::atomic::Ordering;
 use std::sync::{Mutex, MutexGuard};
 use std::{fmt::Debug, io};

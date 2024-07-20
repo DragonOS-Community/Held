@@ -86,6 +86,7 @@ impl FileManager {
         if self.bak.is_some() {
             fs::remove_file(format!("{}{}", self.name, BAK_SUFFIX))?;
         }
+        self.is_first_open = false;
 
         Ok(())
     }

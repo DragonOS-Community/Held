@@ -184,20 +184,22 @@ impl LastLineCommand {
     pub fn lock(ui: &mut MutexGuard<UiCore>, args: &str) -> WarpUiCallBackType {
         let args = args.split(|x| Self::is_split_char(x)).collect::<Vec<_>>();
 
-        if args.len() == 0 {
-            ui.buffer
-                .add_line_flags(ui.cursor.cmd_y() as usize - 1, LineState::LOCKED);
-        }
-
-        for s in args {
-            let line = usize::from_str_radix(s, 10);
-            if line.is_err() {
-                APP_INFO.lock().unwrap().info = format!("\"{s}\" is not a number");
-                return WarpUiCallBackType::None;
+        match args.len() {
+            0 => { //没有参数，锁定当前行
+                ui.buffer.add_line_flags(ui.cursor.cmd_y() as usize -1, LineState::LOCKED)
             }
+            _ => { //有参数，锁定指定行
+                for arg in args {
+                    let line = usize::from_str_radix(arg, 10);
+                    if line.is_err() {
+                        APP_INFO.lock().unwrap().info = format!("\"{arg}\" is not a number");
+                        return WarpUiCallBackType::None;
+                    }
 
-            let line = line.unwrap();
-            ui.buffer.add_line_flags(line - 1, LineState::LOCKED);
+                    let line = line.unwrap();
+                    ui.buffer.add_line_flags(line - 1, LineState::LOCKED);
+                }
+            }
         }
 
         WarpUiCallBackType::None
@@ -207,43 +209,47 @@ impl LastLineCommand {
     pub fn unflag(ui: &mut MutexGuard<UiCore>, args: &str) -> WarpUiCallBackType {
         let args = args.split(|x| Self::is_split_char(x)).collect::<Vec<_>>();
 
-        if args.len() == 0 {
-            ui.buffer
-                .remove_line_flags(ui.cursor.cmd_y() as usize - 1, LineState::FLAGED);
-        }
-
-        for s in args {
-            let line = usize::from_str_radix(s, 10);
-            if line.is_err() {
-                APP_INFO.lock().unwrap().info = format!("\"{s}\" is not a number");
-                return WarpUiCallBackType::None;
+        match args.len() {
+            0 => { //没有参数，解除标记当前行
+                ui.buffer.remove_line_flags(ui.cursor.cmd_y() as usize -1, LineState::FLAGED)
             }
+            _ => { //有参数，解除标记指定行
+                for arg in args {
+                    let line = usize::from_str_radix(arg, 10);
+                    if line.is_err() {
+                        APP_INFO.lock().unwrap().info = format!("\"{arg}\" is not a number");
+                        return WarpUiCallBackType::None;
+                    }
 
-            let line = line.unwrap();
-            ui.buffer.remove_line_flags(line - 1, LineState::FLAGED);
+                    let line = line.unwrap();
+                    ui.buffer.remove_line_flags(line - 1, LineState::FLAGED);
+                }
+            }
         }
 
         WarpUiCallBackType::None
     }
 
-    // 锁定行
+    // 解除锁定行
     pub fn unlock(ui: &mut MutexGuard<UiCore>, args: &str) -> WarpUiCallBackType {
         let args = args.split(|x| Self::is_split_char(x)).collect::<Vec<_>>();
 
-        if args.len() == 0 {
-            ui.buffer
-                .remove_line_flags(ui.cursor.cmd_y() as usize - 1, LineState::LOCKED);
-        }
-
-        for s in args {
-            let line = usize::from_str_radix(s, 10);
-            if line.is_err() {
-                APP_INFO.lock().unwrap().info = format!("\"{s}\" is not a number");
-                return WarpUiCallBackType::None;
+        match args.len() {
+            0 => { //没有参数，解除锁定当前行
+                ui.buffer.remove_line_flags(ui.cursor.cmd_y() as usize -1, LineState::LOCKED)
             }
+            _ => { //有参数，解除锁定指定行
+                for arg in args {
+                    let line = usize::from_str_radix(arg, 10);
+                    if line.is_err() {
+                        APP_INFO.lock().unwrap().info = format!("\"{arg}\" is not a number");
+                        return WarpUiCallBackType::None;
+                    }
 
-            let line = line.unwrap();
-            ui.buffer.remove_line_flags(line - 1, LineState::LOCKED);
+                    let line = line.unwrap();
+                    ui.buffer.remove_line_flags(line - 1, LineState::LOCKED);
+                }
+            }
         }
 
         WarpUiCallBackType::None
@@ -252,53 +258,53 @@ impl LastLineCommand {
     pub fn delete_lines(ui: &mut MutexGuard<UiCore>, args: &str) -> WarpUiCallBackType {
         let args = args.split(|x| x == '-').collect::<Vec<_>>();
 
-        if args.len() == 0 {
-            // 删除当前行
-            let offset = ui.buffer.offset() + ui.cursor.y() as usize;
-            let count = ui.buffer.delete_lines(offset, offset + 1);
-            if count != 0 {
-                APP_INFO.lock().unwrap().info = format!("Successfully deleted {count} row");
-            }
-            ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)
-                .unwrap();
-            return WarpUiCallBackType::None;
-        }
-
-        if args.len() == 1 {
-            let line = usize::from_str_radix(args[0], 10);
-            if line.is_err() {
-                APP_INFO.lock().unwrap().info = format!("\"{}\" is not a number", args[0]);
+        match args.len() {
+            0 => {
+                let offset = ui.buffer.offset() + ui.cursor.y() as usize;
+                let count = ui.buffer.delete_lines(offset, offset + 1);
+                if count != 0 {
+                    APP_INFO.lock().unwrap().info = format!("Successfully deleted {count} row");
+                }
+                ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)
+                    .unwrap();
                 return WarpUiCallBackType::None;
             }
+            1 => {
+                let line = usize::from_str_radix(args[0], 10);
+                if line.is_err() {
+                    APP_INFO.lock().unwrap().info = format!("\"{}\" is not a number", args[0]);
+                    return WarpUiCallBackType::None;
+                }
 
-            let line = line.unwrap();
+                let line = line.unwrap();
 
-            let offset = ui.buffer.offset() + line;
-            let count = ui.buffer.delete_lines(offset, offset + 1);
-            if count != 0 {
-                APP_INFO.lock().unwrap().info = format!("Successfully deleted {count} row");
+                let offset = ui.buffer.offset() + line;
+                let count = ui.buffer.delete_lines(offset, offset + 1);
+                if count != 0 {
+                    APP_INFO.lock().unwrap().info = format!("Successfully deleted {count} row");
+                }
+                ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)
+                    .unwrap();
+                return WarpUiCallBackType::None;
             }
-            ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)
-                .unwrap();
-            return WarpUiCallBackType::None;
+            _ => {
+                let start = usize::from_str_radix(args[0], 10);
+                let end = usize::from_str_radix(args[1], 10);
+
+                if start.is_err() || end.is_err() {
+                    APP_INFO.lock().unwrap().info = "Useage: (dl)|(delete) {start}({'-'}{end})".to_string();
+                    return WarpUiCallBackType::None;
+                }
+
+                let count = ui.buffer.delete_lines(start.unwrap() - 1, end.unwrap() - 1);
+                if count != 0 {
+                    APP_INFO.lock().unwrap().info = format!("Successfully deleted {count} row");
+                }
+
+                ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)
+                    .unwrap();
+            }
         }
-
-        let start = usize::from_str_radix(args[0], 10);
-        let end = usize::from_str_radix(args[1], 10);
-
-        if start.is_err() || end.is_err() {
-            APP_INFO.lock().unwrap().info = "Useage: (dl)|(delete) {start}({'-'}{end})".to_string();
-            return WarpUiCallBackType::None;
-        }
-
-        let count = ui.buffer.delete_lines(start.unwrap() - 1, end.unwrap() - 1);
-        if count != 0 {
-            APP_INFO.lock().unwrap().info = format!("Successfully deleted {count} row");
-        }
-
-        ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)
-            .unwrap();
-
         return WarpUiCallBackType::None;
     }
 }

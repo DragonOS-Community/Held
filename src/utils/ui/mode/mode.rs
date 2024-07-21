@@ -245,7 +245,7 @@ impl Command {
             b'w' | b'e' => {
                 let x = ui.cursor.x();
                 let y = ui.cursor.y();
-                let next_word_pos = ui.buffer.search_nextw_beg(x, y);
+                let next_word_pos = ui.buffer.search_nextw_begin(x, y);
                 let linesize = ui.buffer.get_linesize(y);
         
                 // 如果下一个单词在当前行，则删除当前单词
@@ -287,7 +287,7 @@ impl Command {
     fn jump_to_next_word(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
         let x = ui.cursor.x();
         let y = ui.cursor.y();
-        let pos = ui.buffer.search_nextw_beg(x, y);
+        let pos = ui.buffer.search_nextw_begin(x, y);
         let linesize = ui.buffer.get_linesize(y);
 
         if pos < linesize as usize {
@@ -309,8 +309,9 @@ impl Command {
         let y = ui.cursor.y();
         let linesize = ui.buffer.get_linesize(y) as usize;
         
-        // 如果光标已经在当前行的末尾，则尝试移动到下一行的末尾或单词末尾
-        if x as usize >= linesize - 2 {
+        // 如果光标已经在当前行的末尾或最后一个字符，则尝试移动到下一行的末尾或单词末尾
+        let final_char_pos = linesize - 2;
+        if x as usize >= final_char_pos {
             if y < ui.buffer.line_count() as u16 - 1 {
                 let next_end_pos = ui.buffer.search_nextw_end(0, y + 1) as u16;
                 ui.cursor.move_to(next_end_pos, y + 1)?;
@@ -336,7 +337,7 @@ impl Command {
         if x == 0 {
             if y > 0 {
                 let end_of_prev_line = ui.buffer.get_linesize(y - 1) - 1;
-                let prev_word_pos = match ui.buffer.search_prevw_beg(end_of_prev_line, y - 1) {
+                let prev_word_pos = match ui.buffer.search_prevw_begin(end_of_prev_line, y - 1) {
                     Some(pos) => pos,
                     None => 0
                 };
@@ -349,7 +350,7 @@ impl Command {
             return Ok(WarpUiCallBackType::None);
         }
         
-        let prev_word_pos = match ui.buffer.search_prevw_beg(x, y) {
+        let prev_word_pos = match ui.buffer.search_prevw_begin(x, y) {
             Some(pos) => pos,
             None => 0
         };

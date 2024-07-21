@@ -404,7 +404,7 @@ impl EditBuffer {
     
     /// 返回下一个单词的起始位置
     /// 如果为该行最后一单词，返回该行长度
-    pub fn search_nextw_beg(&self, x: u16, y: u16) -> usize {
+    pub fn search_nextw_begin(&self, x: u16, y: u16) -> usize {
         let mut left = x as usize;
         let mut right = left;
         let linesize = self.get_linesize(y) as usize;
@@ -460,7 +460,7 @@ impl EditBuffer {
     }
     
     /// 返回前一单词首字母位置，如果是当前行首单词，返回 None
-    pub fn search_prevw_beg(&self, x: u16, y: u16) -> Option<usize> {
+    pub fn search_prevw_begin(&self, x: u16, y: u16) -> Option<usize> {
         let mut left = x as i32;
         let mut right = left;
         let buf = self.buf.read().unwrap();

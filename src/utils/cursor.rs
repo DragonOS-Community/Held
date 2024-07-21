@@ -177,7 +177,7 @@ impl CursorCrtl {
         if self.y + lines >= size.rows {
             // 向上滚动
             // todo!()
-            return Ok(());()
+            return Ok(());
         }
 
         CursorManager::move_to_nextline(lines)?;

@@ -241,13 +241,13 @@ impl Command {
                     None => {}
                 }
             }
-            
+
             b'w' | b'e' => {
                 let x = ui.cursor.x();
                 let y = ui.cursor.y();
                 let next_word_pos = ui.buffer.search_nextw_begin(x, y);
                 let linesize = ui.buffer.get_linesize(y);
-        
+
                 // 如果下一个单词在当前行，则删除当前单词
                 if next_word_pos < linesize.into() {
                     ui.buffer.remove_str(x, y, next_word_pos - x as usize);
@@ -255,14 +255,14 @@ impl Command {
                     // 如果下一个单词在下一行，则删除当前行剩余部分
                     self.left(ui)?;
                     ui.buffer.delete_until_endl(x.into(), y.into());
-                } 
+                }
                 ui.render_content(y, 1)?;
             }
-            
+
             b'b' => {
                 let old_x = ui.cursor.x();
                 let old_y = ui.cursor.y();
-                
+
                 self.jump_to_prevw_beg(ui)?;
 
                 let x = ui.cursor.x();
@@ -272,7 +272,8 @@ impl Command {
                     ui.render_content(y, 1)?;
                 } else {
                     ui.buffer.delete_until_endl(x as usize, y as usize);
-                    ui.buffer.delete_until_line_beg(old_x as usize, old_y as usize);
+                    ui.buffer
+                        .delete_until_line_beg(old_x as usize, old_y as usize);
                     ui.buffer.merge_line(old_y);
                     let linecount = ui.buffer.line_count();
                     TermManager::clear_under_cursor()?;
@@ -291,24 +292,24 @@ impl Command {
         let linesize = ui.buffer.get_linesize(y);
 
         if pos < linesize as usize {
-            // 如果下一个单词在当前行，则移动光标到该单词的起始位置 
+            // 如果下一个单词在当前行，则移动光标到该单词的起始位置
             ui.cursor.move_to_columu(pos as u16)?;
         } else if y + 1 < ui.buffer.line_count() as u16 {
             // 如果当前行不是最后一行，则移动到下一行的开头
             self.down(ui)?;
             ui.cursor.move_to_columu(0)?;
         } else {
-            // 如果当前行是最后一行，则移动到当前行的末尾 
+            // 如果当前行是最后一行，则移动到当前行的末尾
             ui.cursor.move_to_columu(linesize as u16 - 1)?;
         }
         return Ok(WarpUiCallBackType::None);
     }
-    
+
     fn jump_to_nextw_ending(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
         let x = ui.cursor.x();
         let y = ui.cursor.y();
         let linesize = ui.buffer.get_linesize(y) as usize;
-        
+
         // 如果光标已经在当前行的末尾或最后一个字符，则尝试移动到下一行的末尾或单词末尾
         let final_char_pos = linesize - 2;
         if x as usize >= final_char_pos {
@@ -317,29 +318,30 @@ impl Command {
                 ui.cursor.move_to(next_end_pos, y + 1)?;
                 ui.cursor.highlight(Some(y))?;
             } else {
-                // 如果已经是最后一行，则保持光标在当前行的末尾  
-                ui.cursor.move_to_columu(linesize as u16 - 1)?;  
+                // 如果已经是最后一行，则保持光标在当前行的末尾
+                ui.cursor.move_to_columu(linesize as u16 - 1)?;
             }
             return Ok(WarpUiCallBackType::None);
         }
-        
+
         let next_end_pos = ui.buffer.search_nextw_end(x, y) as u16;
         // 如果下一个单词的末尾在当前行，则移动光标到该单词的末尾
-        ui.cursor.move_to_columu(next_end_pos.min(linesize as u16 - 2))?;
+        ui.cursor
+            .move_to_columu(next_end_pos.min(linesize as u16 - 2))?;
         return Ok(WarpUiCallBackType::None);
     }
 
     fn jump_to_prevw_beg(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
         let x = ui.cursor.x();
         let y = ui.cursor.y();
-        
+
         // 如果光标已在行首，则尝试移动到上一行的单词首字母
         if x == 0 {
             if y > 0 {
                 let end_of_prev_line = ui.buffer.get_linesize(y - 1) - 1;
                 let prev_word_pos = match ui.buffer.search_prevw_begin(end_of_prev_line, y - 1) {
                     Some(pos) => pos,
-                    None => 0
+                    None => 0,
                 };
                 ui.cursor.move_to(prev_word_pos as u16, y - 1)?;
                 ui.cursor.highlight(Some(y))?;
@@ -349,14 +351,14 @@ impl Command {
             }
             return Ok(WarpUiCallBackType::None);
         }
-        
+
         let prev_word_pos = match ui.buffer.search_prevw_begin(x, y) {
             Some(pos) => pos,
-            None => 0
+            None => 0,
         };
-        
+
         ui.cursor.move_to(prev_word_pos as u16, y)?;
-        return Ok(WarpUiCallBackType::None);  
+        return Ok(WarpUiCallBackType::None);
     }
 }
 
@@ -445,9 +447,9 @@ impl KeyEventCallback for Command {
             }
 
             b"w" => self.jump_to_next_word(ui),
-            
+
             b"e" => self.jump_to_nextw_ending(ui),
-            
+
             b"b" => self.jump_to_prevw_beg(ui),
 
             b"W" => {
@@ -492,7 +494,7 @@ impl KeyEventCallback for Command {
                 }
                 return Ok(WarpUiCallBackType::None);
             }
-            
+
             b"G" => {
                 // 移动到最后一行
                 let line_count = ui.buffer.line_count() as u16;

@@ -155,7 +155,7 @@ impl EditBuffer {
 
         line.data.len() as u16
     }
-    
+
     /// 外部接口，本结构体内部方法不应该使用，因为涉及offset计算
     pub fn remove_char(&self, x: u16, y: u16) {
         let mut buf = self.buf.write().unwrap();
@@ -401,7 +401,7 @@ impl EditBuffer {
         line.data.drain(x..len - 1);
         return Some(x);
     }
-    
+
     /// 返回下一个单词的起始位置
     /// 如果为该行最后一单词，返回该行长度
     pub fn search_nextw_begin(&self, x: u16, y: u16) -> usize {
@@ -409,8 +409,10 @@ impl EditBuffer {
         let mut right = left;
         let linesize = self.get_linesize(y) as usize;
         let buf = self.buf.read().unwrap();
-        let line = buf.get(self.offset.load(Ordering::SeqCst) + y as usize).unwrap();
-        
+        let line = buf
+            .get(self.offset.load(Ordering::SeqCst) + y as usize)
+            .unwrap();
+
         while left <= right && right < linesize {
             let lchar = line[left] as char;
             let rchar = line[right] as char;
@@ -424,10 +426,10 @@ impl EditBuffer {
             }
             right += 1;
         }
-        
+
         return right;
     }
-    
+
     /// 搜索下一个单词的末尾
     /// 如果为该行最后一单词，返回该行长度
     pub fn search_nextw_end(&self, x: u16, y: u16) -> usize {
@@ -435,8 +437,10 @@ impl EditBuffer {
         let mut right = left;
         let linesize = self.get_linesize(y) as usize;
         let buf = self.buf.read().unwrap();
-        let line = buf.get(self.offset.load(Ordering::SeqCst) + y as usize).unwrap();
-        
+        let line = buf
+            .get(self.offset.load(Ordering::SeqCst) + y as usize)
+            .unwrap();
+
         while left <= right && right < linesize {
             let lchar = line[left] as char;
             let rchar = line[right] as char;
@@ -458,24 +462,26 @@ impl EditBuffer {
 
         return right;
     }
-    
+
     /// 返回前一单词首字母位置，如果是当前行首单词，返回 None
     pub fn search_prevw_begin(&self, x: u16, y: u16) -> Option<usize> {
         let mut left = x as i32;
         let mut right = left;
         let buf = self.buf.read().unwrap();
-        let line = buf.get(self.offset.load(Ordering::SeqCst) + y as usize).unwrap();
-        
+        let line = buf
+            .get(self.offset.load(Ordering::SeqCst) + y as usize)
+            .unwrap();
+
         while left <= right && left >= 0 {
             let lchar = line[left as usize] as char;
             let rchar = line[right as usize] as char;
-            
+
             if rchar == ' ' || rchar == '\t' {
                 left -= 1;
                 right -= 1;
                 continue;
             }
-            
+
             if lchar == ' ' || lchar == '\t' {
                 if left + 1 == x.into() {
                     right = left;
@@ -483,7 +489,7 @@ impl EditBuffer {
                 }
                 return Some(left as usize + 1);
             }
-            
+
             left -= 1;
         }
         return None;

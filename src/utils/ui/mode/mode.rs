@@ -214,9 +214,21 @@ impl Command {
             b'd' => {
                 TermManager::clear_under_cursor()?;
                 let y = ui.cursor.y() as usize;
+                let old_line_count = ui.buffer.line_count();
+
+                let count = old_line_count - y as usize;
                 ui.buffer.delete_line(y);
-                let count = ui.buffer.line_count() - y as usize - 1;
-                ui.render_content(y as u16, count)?;
+                ui.render_content(y as u16, count.max(1))?;
+
+                if y == old_line_count - 1 {
+                    self.up(ui)?;
+                }
+
+                if old_line_count == 1 {
+                    ui.cursor.move_to_columu(0)?;
+                    ui.buffer.insert_char('\n' as u8, 0, 0);
+                    ui.render_content(0, 1)?;
+                }
             }
             b'0' => {
                 let x = ui.cursor.x() as usize;

@@ -223,11 +223,13 @@ impl EditBuffer {
     #[inline]
     pub fn insert_char(&self, ch: u8, x: u16, y: u16) {
         let mut buf = self.buf.write().unwrap();
-        if buf.len() > 0 {
-            let line = buf.get_mut(self.offset() + y as usize).unwrap();
-            line.insert(x as usize, ch);
-        } else {
-            buf.push(LineBuffer::new(vec![ch]));
+        let line = buf.get_mut(self.offset() + y as usize);
+        match line {
+            Some(line) => line.insert(x as usize, ch),
+            None => {
+                let newline = vec!['\n' as u8];
+                buf.push(LineBuffer::new(newline));
+            }
         }
     }
 

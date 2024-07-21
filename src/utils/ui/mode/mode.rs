@@ -212,6 +212,7 @@ impl Command {
 
         match buf[0] {
             b'd' => {
+                TermManager::clear_current_line()?;
                 TermManager::clear_under_cursor()?;
                 let y = ui.cursor.y() as usize;
                 let old_line_count = ui.buffer.line_count();

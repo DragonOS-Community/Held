@@ -382,6 +382,7 @@ impl EditBuffer {
         }
     }
 
+    /// 删除 y 行 0..x 的字符
     pub fn delete_until_line_beg(&self, x: usize, y: usize) -> Option<usize> {
         let mut buffer = self.buf.write().unwrap();
         let line = buffer.get_mut(y).unwrap();
@@ -393,6 +394,7 @@ impl EditBuffer {
         return Some(x - 1);
     }
 
+    /// 删除 y 行 x..end 的字符
     pub fn delete_until_endl(&self, x: usize, y: usize) -> Option<usize> {
         let mut buffer = self.buf.write().unwrap();
         let line = buffer.get_mut(y).unwrap();

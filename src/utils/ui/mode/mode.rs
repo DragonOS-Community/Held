@@ -3,6 +3,8 @@ use std::sync::atomic::Ordering;
 use std::sync::{Mutex, MutexGuard};
 use std::{fmt::Debug, io};
 
+use serde::de;
+
 use crate::config::lastline_cmd::LastLineCommand;
 use crate::utils::buffer::LineState;
 #[cfg(feature = "dragonos")]
@@ -211,26 +213,8 @@ impl Command {
         let _ = io::stdin().read(buf)?;
 
         match buf[0] {
-            b'd' => {
-                TermManager::clear_current_line()?;
-                TermManager::clear_under_cursor()?;
-                let y = ui.cursor.y() as usize;
-                let old_line_count = ui.buffer.line_count();
+            b'd' => self.remove_line(ui)?,
 
-                let count = old_line_count - y as usize;
-                ui.buffer.delete_line(y);
-                ui.render_content(y as u16, count.max(1))?;
-
-                if y == old_line_count - 1 {
-                    self.up(ui)?;
-                }
-
-                if old_line_count == 1 {
-                    ui.cursor.move_to_columu(0)?;
-                    ui.buffer.insert_char('\n' as u8, 0, 0);
-                    ui.render_content(0, 1)?;
-                }
-            }
             b'0' => {
                 let x = ui.cursor.x() as usize;
                 let y = ui.cursor.y() as usize;
@@ -255,43 +239,29 @@ impl Command {
                 }
             }
 
-            b'w' | b'e' => {
-                let x = ui.cursor.x();
-                let y = ui.cursor.y();
-                let next_word_pos = ui.buffer.search_nextw_begin(x, y);
-                let linesize = ui.buffer.get_linesize(y);
-
-                // 如果下一个单词在当前行，则删除当前单词
-                if next_word_pos < linesize.into() {
-                    ui.buffer.remove_str(x, y, next_word_pos - x as usize);
-                } else {
-                    // 如果下一个单词在下一行，则删除当前行剩余部分
-                    self.left(ui)?;
-                    ui.buffer.delete_until_endl(x.into(), y.into());
-                }
-                ui.render_content(y, 1)?;
-            }
+            b'w' | b'e' => self.remove_word(ui)?,
 
             b'b' => {
-                let old_x = ui.cursor.x();
-                let old_y = ui.cursor.y();
+                todo!();
+                // let old_x = ui.cursor.x();
+                // let old_y = ui.cursor.y();
 
-                self.jump_to_prevw_beg(ui)?;
+                // self.jump_to_prevw_beg(ui)?;
 
-                let x = ui.cursor.x();
-                let y = ui.cursor.y();
-                if old_y == y {
-                    ui.buffer.remove_str(x, y, old_x as usize - x as usize);
-                    ui.render_content(y, 1)?;
-                } else {
-                    ui.buffer.delete_until_endl(x as usize, y as usize);
-                    ui.buffer
-                        .delete_until_line_beg(old_x as usize, old_y as usize);
-                    ui.buffer.merge_line(old_y);
-                    let linecount = ui.buffer.line_count();
-                    TermManager::clear_under_cursor()?;
-                    ui.render_content(y, linecount - y as usize - 1)?;
-                }
+                // let x = ui.cursor.x();
+                // let y = ui.cursor.y();
+                // if old_y == y {
+                //     ui.buffer.remove_str(x, y, old_x as usize - x as usize);
+                //     ui.render_content(y, 1)?;
+                // } else {
+                //     ui.buffer.delete_until_endl(x as usize, y as usize);
+                //     ui.buffer
+                //         .delete_until_line_beg(old_x as usize, old_y as usize);
+                //     ui.buffer.merge_line(old_y);
+                //     let linecount = ui.buffer.line_count();
+                //     TermManager::clear_under_cursor()?;
+                //     ui.render_content(y, linecount - y as usize - 1)?;
+                // }
             }
             _ => {}
         }
@@ -372,6 +342,86 @@ impl Command {
 
         ui.cursor.move_to(prev_word_pos as u16, y)?;
         return Ok(WarpUiCallBackType::None);
+    }
+
+    fn remove_word(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+        let x = ui.cursor.x();
+        let y = ui.cursor.y();
+        let next_word_pos = ui.buffer.search_nextw_begin(x, y);
+        let linesize = ui.buffer.get_linesize(y);
+
+        // 如果下一个单词在当前行，则删除当前单词
+        if next_word_pos < linesize.into() {
+            ui.buffer.remove_str(x, y, next_word_pos - x as usize);
+        } else {
+            // 如果下一个单词在下一行，则删除当前行剩余部分
+            self.left(ui)?;
+            ui.buffer.delete_until_endl(x.into(), y.into());
+        }
+        ui.render_content(y, 1)?;
+        return Ok(());
+    }
+
+    fn remove_n_word(&self, ui: &mut MutexGuard<UiCore>, n: u16) -> io::Result<()> {
+        let old_x = ui.cursor.x();
+        let old_y = ui.cursor.y();
+        TermManager::clear_current_line()?;
+        TermManager::clear_under_cursor()?;
+        for _ in 0..n {
+            self.jump_to_next_word(ui)?;
+        }
+        let x = ui.cursor.x();
+        let y = ui.cursor.y();
+        if old_y == y {
+            ui.buffer
+                .remove_str(old_x, old_y, x as usize - old_x as usize);
+            ui.render_content(y, 1)?;
+        } else {
+            ui.buffer.delete_until_endl(old_x as usize, old_y as usize);
+            ui.buffer.delete_until_line_beg(x as usize + 1, y as usize);
+            if y - old_y > 1 {
+                ui.buffer.delete_lines(old_y as usize + 1, y as usize - 1);
+            }
+            let linecount = ui.buffer.line_count();
+            ui.render_content(y, linecount - y as usize - 1)?;
+        }
+        ui.cursor.move_to(old_x, old_y)?;
+        Ok(())
+    }
+
+    fn remove_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+        TermManager::clear_current_line()?;
+        TermManager::clear_under_cursor()?;
+        let y = ui.cursor.y() as usize;
+        let old_line_count = ui.buffer.line_count();
+
+        let count = old_line_count - y as usize;
+        ui.buffer.delete_line(y);
+        ui.render_content(y as u16, count.max(1))?;
+
+        if y == old_line_count - 1 {
+            self.up(ui)?;
+        }
+
+        if old_line_count == 1 {
+            ui.cursor.move_to_columu(0)?;
+            ui.buffer.insert_char('\n' as u8, 0, 0);
+            ui.render_content(0, 1)?;
+        }
+
+        Ok(())
+    }
+
+    fn remove_n_line(&self, ui: &mut MutexGuard<UiCore>, n: u16) -> io::Result<()> {
+        let linecount = ui.buffer.line_count() as u16;
+        let y = ui.cursor.y();
+
+        // 实际能删除的行数
+        let to_delete = n.min(linecount - y);
+        for _ in 0..to_delete {
+            self.remove_line(ui)?;
+        }
+        Ok(())
     }
 }
 
@@ -516,6 +566,20 @@ impl KeyEventCallback for Command {
                 ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
                 ui.cursor.move_to_row(new_y)?;
                 ui.cursor.highlight(Some(y))?;
+                return Ok(WarpUiCallBackType::None);
+            }
+            
+            b"g" => {
+                let buf: &mut [u8] = &mut [0; 8];
+                let _ = io::stdin().read(buf)?;
+                if buf[0] as char == 'g' {
+                    // 移动到第一行
+                    let old_y = ui.cursor.y();
+                    let y = ui.buffer.goto_line(0);
+                    ui.cursor.move_to_row(y)?;
+                    ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
+                    ui.cursor.highlight(Some(old_y))?;
+                }
                 return Ok(WarpUiCallBackType::None);
             }
 

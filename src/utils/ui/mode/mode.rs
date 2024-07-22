@@ -512,8 +512,9 @@ impl KeyEventCallback for Command {
                 // 移动到最后一行
                 let line_count = ui.buffer.line_count() as u16;
                 let y = ui.cursor.y();
-                ui.scroll_down(line_count - y)?;
-                ui.cursor.move_to_row(line_count - 1)?;
+                let new_y = ui.buffer.goto_line(line_count as usize - 1);
+                ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
+                ui.cursor.move_to_row(new_y)?;
                 ui.cursor.highlight(Some(y))?;
                 return Ok(WarpUiCallBackType::None);
             }

@@ -40,6 +40,7 @@ const EDITED_NO_STORE: &'static str = "Changes have not been saved";
 const NOT_FOUNT_CMD: &'static str = "Command Not Fount";
 
 #[derive(Debug)]
+#[allow(unused)]
 pub struct LastLineCommand {
     /// Command
     pub command: String,

@@ -79,6 +79,7 @@ pub struct EditBuffer {
     locked_lines: RwLock<HashMap<usize, usize>>,
 }
 
+#[allow(unused)]
 impl EditBuffer {
     pub fn new(buf: Vec<u8>) -> Self {
         let mut lines = buf
@@ -178,8 +179,10 @@ impl EditBuffer {
         }
     }
 
+    /// 向缓冲区插入一行数据
     pub fn insert_line(&self, idx: usize, element: &LineBuffer) {
-        
+        let mut buf = self.buf.write().unwrap();
+        buf.insert(idx, element.clone());
     }
 
     /// 将某行数据与上一行合并

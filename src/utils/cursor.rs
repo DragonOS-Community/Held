@@ -242,7 +242,7 @@ impl CursorCrtl {
         Ok(())
     }
 
-    pub fn move_left(&mut self, mut count: u16) -> io::Result<()> {
+    pub fn move_left(&mut self, count: u16) -> io::Result<()> {
         let result = match self.x {
             x if x == 0 => Ok(()),
             x if x < count => self.move_to_columu(0),

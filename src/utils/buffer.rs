@@ -178,6 +178,10 @@ impl EditBuffer {
         }
     }
 
+    pub fn insert_line(&self, idx: usize, element: &LineBuffer) {
+        
+    }
+
     /// 将某行数据与上一行合并
     /// 返回合并是否成功,以及被合并行之前的长度
     pub fn merge_line(&self, line: u16) -> (bool, usize) {

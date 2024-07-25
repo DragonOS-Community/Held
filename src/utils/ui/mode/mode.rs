@@ -373,6 +373,37 @@ impl Command {
         ui.cursor.move_to(prev_word_pos as u16, y)?;
         return Ok(WarpUiCallBackType::None);
     }
+
+    // 移动光标到当前窗口最上方的一行
+    pub fn move_cursor_to_screen_top(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+        let y = ui.cursor.y() as usize;
+
+        if y == 0 {
+            return Ok(());
+        }
+
+        let offset = ui.buffer.offset();
+        let new_y = ui.buffer.goto_line(offset);
+        ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
+        ui.cursor.move_to_row(new_y)?;
+        ui.cursor.highlight(Some(y as u16))?;
+
+        Ok(())
+    }
+
+    pub fn move_cursor_to_screen_middle(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+        let y = ui.cursor.y() as usize;
+        let win_rows = CONTENT_WINSIZE.read().unwrap().rows as usize;
+
+        let offset = ui.buffer.offset();
+
+        let new_y = ui.buffer.goto_line(offset + win_rows / 2);
+        ui.render_content(0, win_rows)?;
+        ui.cursor.move_to_row(new_y)?;
+        ui.cursor.highlight(Some(y as u16))?;
+
+        Ok(())
+    }
 }
 
 impl KeyEventCallback for Command {
@@ -516,6 +547,16 @@ impl KeyEventCallback for Command {
                 ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
                 ui.cursor.move_to_row(new_y)?;
                 ui.cursor.highlight(Some(y))?;
+                return Ok(WarpUiCallBackType::None);
+            }
+
+            b"H" => {
+                self.move_cursor_to_screen_top(ui)?;
+                return Ok(WarpUiCallBackType::None);
+            }
+
+            b"M" => {
+                self.move_cursor_to_screen_middle(ui)?;
                 return Ok(WarpUiCallBackType::None);
             }
 

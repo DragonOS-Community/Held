@@ -213,11 +213,11 @@ impl UiCore {
         }
 
         self.buffer.set_offset(offset - count as usize);
-        // 将光标移动第count行
 
         // 执行滚动
         TermManager::scroll_down(count)?;
 
+        // 将光标移动第count行
         self.cursor.move_to_row(count - 1)?;
         // 清除光标以上的内容
         TermManager::clear_up_cursor()?;

@@ -176,7 +176,8 @@ impl CursorCrtl {
         let size = *WINSIZE.read().unwrap();
         if self.y + lines >= size.rows {
             // 向上滚动
-            todo!()
+            // todo!()
+            return Ok(());
         }
 
         CursorManager::move_to_nextline(lines)?;

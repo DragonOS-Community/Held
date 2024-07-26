@@ -7,6 +7,7 @@ use super::style::StyleManager;
 pub mod event;
 pub mod mode;
 pub mod uicore;
+pub mod undotree;
 
 #[derive(Debug)]
 pub struct AppInfo {

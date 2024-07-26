@@ -172,11 +172,23 @@ impl CursorCrtl {
         Ok(())
     }
 
-    pub fn move_to_nextline(&mut self, lines: u16) -> io::Result<()> {
+    pub fn move_to_nextline(&mut self, mut lines: u16) -> io::Result<()> {
         let size = *WINSIZE.read().unwrap();
         if self.y + lines >= size.rows {
             // 向上滚动
-            todo!()
+
+            // 保存位置
+            let pos = self.store_tmp_pos();
+            // 计算需要滚动的行数
+            let offset = self.buf.offset();
+            if offset < lines as usize {
+                lines = offset as u16;
+            }
+            // 重新设置偏移位置
+            self.buf.set_offset(offset - lines as usize);
+            //翻页并恢复位置
+            TermManager::scroll_up(lines)?;
+            self.restore_tmp_pos(pos)?;
         }
 
         CursorManager::move_to_nextline(lines)?;
@@ -191,12 +203,23 @@ impl CursorCrtl {
         Ok(())
     }
 
-    pub fn move_to_previous_line(&mut self, lines: u16) -> io::Result<()> {
-        let size = *WINSIZE.read().unwrap();
-
-        if self.y() - lines > size.rows {
+    pub fn move_to_previous_line(&mut self, mut lines: u16) -> io::Result<()> {
+        if self.y() < lines {
             // 溢出，则向下滚动
-            todo!()
+            
+            // 保存位置
+            let pos = self.store_tmp_pos();
+            let offset = self.buf.offset();
+            // 计算需要滚动的行数
+            let line_count = self.buf.line_count();
+            if line_count < offset + lines as usize {
+                lines = (line_count - offset) as u16;
+            }
+            // 重新设置偏移位置
+            self.buf.set_offset(offset + lines as usize);
+            //翻页并恢复位置
+            TermManager::scroll_up(lines)?;
+            self.restore_tmp_pos(pos)?;
         }
 
         CursorManager::move_to_previous_line(lines)?;

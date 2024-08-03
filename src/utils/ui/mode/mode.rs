@@ -19,6 +19,7 @@ use crate::utils::ui::{
 };
 
 use crate::utils::ui::event::WarpUiCallBackType;
+use arboard::Clipboard;
 
 pub trait InputMode: KeyEventCallback + Debug {
     fn mode_type(&self) -> ModeType;
@@ -189,7 +190,7 @@ impl Command {
 
     fn jump_to_first_char(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
         // 移动到行第一个单词的首字母
-        let first_char = {
+        let first_char_pos = {
             let line = ui.buffer.get_line(ui.cursor.y()).data;
             let mut idx = 0;
             for char in line {
@@ -197,11 +198,14 @@ impl Command {
                     idx += 1;
                 } else if char == b"\t"[0] {
                     idx += 4;
+                } else {
+                    break;
                 }
             }
             idx
         };
-        ui.cursor.move_to_columu(first_char)?;
+
+        ui.cursor.move_to_columu(first_char_pos as u16)?;
         return Ok(WarpUiCallBackType::None);
     }
 
@@ -423,6 +427,96 @@ impl Command {
         }
         Ok(())
     }
+
+    /// 移动到最后一行
+    fn jump_to_last_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+        let line_count = ui.buffer.line_count() as u16;
+        let y = ui.cursor.y();
+        let new_y = ui.buffer.goto_line(line_count as usize - 1);
+        ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
+        ui.cursor.move_to_row(new_y)?;
+        ui.cursor.highlight(Some(y))?;
+        return Ok(());
+    }
+
+    /// 移动到第一行
+    fn jump_to_first_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+        let buf: &mut [u8] = &mut [0; 8];
+        let _ = io::stdin().read(buf)?;
+        if buf[0] as char == 'g' {
+            let old_y = ui.cursor.y();
+            let y = ui.buffer.goto_line(0);
+            ui.cursor.move_to_row(y)?;
+            ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
+            ui.cursor.highlight(Some(old_y))?;
+        }
+        Ok(())
+    }
+
+    /// 复制当前行到剪切板
+    #[cfg(not(feature = "dragonos"))]
+    fn yank_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+        let y = ui.cursor.y();
+        let line = ui.buffer.get_line(y);
+        // 将当前行的内容复制到剪切板
+        let mut ctx = Clipboard::new().unwrap();
+        ctx.set_text(String::from_utf8_lossy(&line.data).to_string())
+            .unwrap();
+        Ok(())
+    }
+
+    /// 粘贴剪切板内容
+    #[cfg(not(feature = "dragonos"))]
+    fn paste(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+        let mut ctx = Clipboard::new().unwrap();
+        let content = ctx.get_text().unwrap();
+        let x = ui.cursor.x();
+        let y = ui.cursor.y();
+
+        let lineflag = ui.buffer.line_flags(y);
+        if lineflag.contains(LineState::LOCKED) {
+            APP_INFO.lock().unwrap().info = "Row is locked".to_string();
+            return Err(io::Error::new(io::ErrorKind::Other, "Row is locked"));
+        }
+
+        for (idx, ch) in content.as_bytes().iter().enumerate() {
+            ui.buffer.insert_char(*ch, x + idx as u16, y);
+        }
+
+        let line_data = ui.buffer.get_line(y);
+
+        // 考虑长度包含\n,所以要减1
+        ui.cursor.write(String::from_utf8_lossy(
+            &line_data.data[x as usize..(line_data.size() - 1)],
+        ))?;
+        ui.cursor.highlight(Some(y))?;
+
+        ui.render_content(y, 1)?;
+        Ok(())
+    }
+
+    /// 向下粘贴一行
+    #[cfg(not(feature = "dragonos"))]
+    fn paste_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+        let x = ui.cursor.x();
+        let y = ui.cursor.y();
+        let lineflag = ui.buffer.line_flags(y);
+        if lineflag.contains(LineState::LOCKED) {
+            APP_INFO.lock().unwrap().info = "Row is locked".to_string();
+            return Err(io::Error::new(io::ErrorKind::Other, "Row is locked"));
+        }
+        let mut ctx = Clipboard::new().unwrap();
+        let mut content = ctx.get_text().unwrap();
+        if !content.ends_with('\n') {
+            content.push('\n');
+        }
+        ui.buffer.input_enter(ui.buffer.get_linesize(y) - 1, y);
+        for (idx, ch) in content.as_bytes().iter().enumerate() {
+            ui.buffer.insert_char(*ch, x + idx as u16, y + 1);
+        }
+        ui.render_content(y, crossterm::terminal::size()?.0 as usize)?;
+        Ok(())
+    }
 }
 
 impl KeyEventCallback for Command {
@@ -568,7 +662,7 @@ impl KeyEventCallback for Command {
                 ui.cursor.highlight(Some(y))?;
                 return Ok(WarpUiCallBackType::None);
             }
-            
+
             b"g" => {
                 let buf: &mut [u8] = &mut [0; 8];
                 let _ = io::stdin().read(buf)?;

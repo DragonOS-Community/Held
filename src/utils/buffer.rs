@@ -420,6 +420,9 @@ impl EditBuffer {
         while left <= right && right < linesize {
             let lchar = line[left] as char;
             let rchar = line[right] as char;
+            if rchar.is_ascii_punctuation() && right != x.into() {
+                break;
+            }
             if !(lchar == ' ' || lchar == '\t') {
                 left += 1;
                 right += 1;

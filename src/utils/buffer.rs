@@ -413,9 +413,10 @@ impl EditBuffer {
         let mut right = left;
         let linesize = self.get_linesize(y) as usize;
         let buf = self.buf.read().unwrap();
-        let line = buf
-            .get(self.offset.load(Ordering::SeqCst) + y as usize)
-            .unwrap();
+        let line = match buf.get(self.offset.load(Ordering::SeqCst) + y as usize) {
+            Some(line) => line,
+            None => return x as usize,
+        };
 
         while left <= right && right < linesize {
             let lchar = line[left] as char;
@@ -444,13 +445,17 @@ impl EditBuffer {
         let mut right = left;
         let linesize = self.get_linesize(y) as usize;
         let buf = self.buf.read().unwrap();
-        let line = buf
-            .get(self.offset.load(Ordering::SeqCst) + y as usize)
-            .unwrap();
+        let line = match buf.get(self.offset.load(Ordering::SeqCst) + y as usize) {
+            Some(line) => line,
+            None => return x as usize,
+        };
 
         while left <= right && right < linesize {
             let lchar = line[left] as char;
             let rchar = line[right] as char;
+            if rchar.is_ascii_punctuation() && right != x.into() {
+                break;
+            }
             if lchar == ' ' || lchar == '\t' {
                 left += 1;
                 right += 1;
@@ -475,14 +480,17 @@ impl EditBuffer {
         let mut left = x as i32;
         let mut right = left;
         let buf = self.buf.read().unwrap();
-        let line = buf
-            .get(self.offset.load(Ordering::SeqCst) + y as usize)
-            .unwrap();
-
+        let line = match buf.get(self.offset.load(Ordering::SeqCst) + y as usize) {
+            Some(line) => line,
+            None => return Some(x as usize),
+        };
         while left <= right && left >= 0 {
             let lchar = line[left as usize] as char;
             let rchar = line[right as usize] as char;
 
+            if rchar.is_ascii_punctuation() && right != x.into() {
+                break;
+            }
             if rchar == ' ' || rchar == '\t' {
                 left -= 1;
                 right -= 1;

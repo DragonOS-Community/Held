@@ -279,10 +279,12 @@ impl Command {
         if pos < linesize as usize {
             // 如果下一个单词在当前行，则移动光标到该单词的起始位置
             ui.cursor.move_to_columu(pos as u16)?;
-        } else if y + 1 < ui.buffer.line_count() as u16 {
-            // 如果当前行不是最后一行，则移动到下一行的开头
+        } else if y as usize + ui.buffer.offset() < ui.buffer.line_count() - 1 {
+            // 如果当前行不是最后一行，则移动到下一行的单词起始位置
+            let next_word_pos = ui.buffer.search_nextw_begin(0, y + 1) as u16;
             self.down(ui)?;
-            ui.cursor.move_to_columu(0)?;
+            ui.cursor.move_to_columu(next_word_pos)?;
+            ui.cursor.highlight(Some(y))?;
         } else {
             // 如果当前行是最后一行，则移动到当前行的末尾
             ui.cursor.move_to_columu(linesize as u16 - 1)?;
@@ -295,12 +297,14 @@ impl Command {
         let y = ui.cursor.y();
         let linesize = ui.buffer.get_linesize(y) as usize;
 
-        // 如果光标已经在当前行的末尾或最后一个字符，则尝试移动到下一行的末尾或单词末尾
-        let final_char_pos = linesize - 2;
-        if x as usize >= final_char_pos {
-            if y < ui.buffer.line_count() as u16 - 1 {
+        // 如果光标已经在当前行的末尾或最后一个字符(x + 2)，则尝试移动到下一行的末尾或单词末尾
+        if x as usize + 2 >= linesize {
+            // y的绝对位置
+            let abs_y = ui.buffer.offset() + y as usize;
+            if abs_y < ui.buffer.line_count() - 1 {
                 let next_end_pos = ui.buffer.search_nextw_end(0, y + 1) as u16;
-                ui.cursor.move_to(next_end_pos, y + 1)?;
+                self.down(ui)?;
+                ui.cursor.move_to_columu(next_end_pos)?;
                 ui.cursor.highlight(Some(y))?;
             } else {
                 // 如果已经是最后一行，则保持光标在当前行的末尾

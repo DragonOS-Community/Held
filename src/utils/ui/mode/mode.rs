@@ -3,8 +3,6 @@ use std::sync::atomic::Ordering;
 use std::sync::{Mutex, MutexGuard};
 use std::{fmt::Debug, io};
 
-use serde::de;
-
 use crate::config::lastline_cmd::LastLineCommand;
 use crate::utils::buffer::LineState;
 #[cfg(feature = "dragonos")]
@@ -453,6 +451,58 @@ impl Command {
         Ok(())
     }
 
+    #[cfg(not(feature = "dragonos"))]
+    fn do_yank(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+        let buf = &mut [0; 8];
+        let _ = io::stdin().read(buf)?;
+        match buf[0] as char {
+            'y' => self.yank_line(ui)?,
+            'w' => self.yank_word(ui)?,
+            'a' => {
+                let buf = &mut [0; 8];
+                let _ = io::stdin().read(buf)?;
+                let pat = buf[0];
+                assert!(self.is_left_bracket(pat) || self.is_right_bracket(pat));
+                if let Some((left, right)) = self.search_pair(ui, pat) {
+                    let mut content: Vec<u8> = Vec::new();
+                    content.extend_from_slice(
+                        &ui.buffer.get_line(ui.cursor.y()).data[left as usize..right as usize + 1],
+                    );
+                    let mut ctx = Clipboard::new().unwrap();
+                    ctx.set_text(String::from_utf8_lossy(&content).to_string())
+                        .unwrap();
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    #[cfg(not(feature = "dragonos"))]
+    fn yank_word(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+        let old_x = ui.cursor.x();
+        let old_y = ui.cursor.y();
+        self.jump_to_nextw_ending(ui)?;
+        let x = ui.cursor.x();
+        let y = ui.cursor.y();
+        ui.cursor.move_to(old_x, old_y)?;
+        // 复制(old_x, old_y)到(x, y)之间的内容
+        let mut content: Vec<u8> = Vec::new();
+        if old_y == y {
+            content.extend_from_slice(&ui.buffer.get_line(y).data[old_x as usize..x as usize + 1]);
+        } else {
+            content.extend_from_slice(&ui.buffer.get_line(old_y).data[old_x as usize..]);
+            for i in old_y + 1..y {
+                content.extend_from_slice(&ui.buffer.get_line(i).data);
+            }
+            content.extend_from_slice(&ui.buffer.get_line(y).data[..x as usize + 1]);
+        }
+        let mut ctx = Clipboard::new().unwrap();
+        ctx.set_text(String::from_utf8_lossy(&content).to_string())
+            .unwrap();
+        Ok(())
+    }
+
     /// 复制当前行到剪切板
     #[cfg(not(feature = "dragonos"))]
     fn yank_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
@@ -467,37 +517,36 @@ impl Command {
 
     /// 粘贴剪切板内容
     #[cfg(not(feature = "dragonos"))]
-    fn paste(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
-        let mut ctx = Clipboard::new().unwrap();
-        let content = ctx.get_text().unwrap();
-        let x = ui.cursor.x();
-        let y = ui.cursor.y();
-
-        let lineflag = ui.buffer.line_flags(y);
-        if lineflag.contains(LineState::LOCKED) {
-            APP_INFO.lock().unwrap().info = "Row is locked".to_string();
-            return Err(io::Error::new(io::ErrorKind::Other, "Row is locked"));
-        }
-
+    fn paste(&self, ui: &mut MutexGuard<UiCore>, content: &str, x: u16, y: u16) -> io::Result<()> {
         for (idx, ch) in content.as_bytes().iter().enumerate() {
             ui.buffer.insert_char(*ch, x + idx as u16, y);
         }
 
-        let line_data = ui.buffer.get_line(y);
-
-        // 考虑长度包含\n,所以要减1
-        ui.cursor.write(String::from_utf8_lossy(
-            &line_data.data[x as usize..(line_data.size() - 1)],
-        ))?;
-        ui.cursor.highlight(Some(y))?;
-
-        ui.render_content(y, 1)?;
+        ui.render_content(y, crossterm::terminal::size()?.0 as usize)?;
+        ui.cursor.move_to_columu(x + content.len() as u16)?;
         Ok(())
     }
 
     /// 向下粘贴一行
     #[cfg(not(feature = "dragonos"))]
-    fn paste_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+    fn paste_line(
+        &self,
+        ui: &mut MutexGuard<UiCore>,
+        content: &str,
+        x: u16,
+        y: u16,
+    ) -> io::Result<()> {
+        ui.buffer.input_enter(ui.buffer.get_linesize(y) - 1, y);
+        for (idx, ch) in content.as_bytes().iter().enumerate() {
+            ui.buffer.insert_char(*ch, x + idx as u16, y + 1);
+        }
+        ui.render_content(y, crossterm::terminal::size()?.0 as usize)?;
+        self.down(ui)?;
+        Ok(())
+    }
+
+    #[cfg(not(feature = "dragonos"))]
+    fn do_paste(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
         let x = ui.cursor.x();
         let y = ui.cursor.y();
         let lineflag = ui.buffer.line_flags(y);
@@ -506,16 +555,154 @@ impl Command {
             return Err(io::Error::new(io::ErrorKind::Other, "Row is locked"));
         }
         let mut ctx = Clipboard::new().unwrap();
-        let mut content = ctx.get_text().unwrap();
-        if !content.ends_with('\n') {
-            content.push('\n');
+        let content = ctx.get_text().unwrap();
+
+        if content.ends_with('\n') {
+            self.paste_line(ui, &content, x, y)?;
+        } else {
+            self.paste(ui, &content, x, y)?;
         }
-        ui.buffer.input_enter(ui.buffer.get_linesize(y) - 1, y);
-        for (idx, ch) in content.as_bytes().iter().enumerate() {
-            ui.buffer.insert_char(*ch, x + idx as u16, y + 1);
-        }
-        ui.render_content(y, crossterm::terminal::size()?.0 as usize)?;
         Ok(())
+    }
+
+    /// 定位最近的一对括号，根据左括号定位右括号
+    /// 如果找到则返回括号的位置，否则返回None
+    fn search_pairs_by_left_pat(
+        &self,
+        ui: &mut MutexGuard<UiCore>,
+        left_pat: u8,
+    ) -> Option<(u16, u16)> {
+        let x = ui.cursor.x();
+        let y = ui.cursor.y();
+        let mut left = x as i32;
+        let mut right = x as i32;
+        let line = ui.buffer.get_line(y).data;
+        let linesize = ui.buffer.get_linesize(y);
+        let right_pat = self.get_right_pair(left_pat);
+        // 尝试往前找到左括号
+        while left >= 0 && line[left as usize] != left_pat {
+            left -= 1;
+        }
+        // 未找到左括号，尝试往后找左括号
+        if left < 0 {
+            left = x as i32;
+            while left <= right && right < linesize as i32 {
+                if line[left as usize] != left_pat {
+                    left += 1;
+                    right += 1;
+                    continue;
+                }
+                if right_pat == line[right as usize] {
+                    break;
+                }
+                right += 1;
+            }
+        } else {
+            // 找到左括号，尝试往后找右括号
+            right = left + 1;
+            while right < linesize as i32 {
+                if line[right as usize] == right_pat {
+                    break;
+                }
+                right += 1;
+            }
+        }
+        // 匹配失败
+        if right >= linesize.into() {
+            return None;
+        }
+        return Some((left as u16, right as u16));
+    }
+
+    /// 定位最近的一对括号，根据右括号定位左括号
+    /// 返回左括号和右括号的位置
+    fn search_pairs_by_right_pat(
+        &self,
+        ui: &mut MutexGuard<UiCore>,
+        right_pat: u8,
+    ) -> Option<(u16, u16)> {
+        let x = ui.cursor.x();
+        let y = ui.cursor.y();
+        let mut left = x as i32;
+        let mut right = x as i32;
+        let line = ui.buffer.get_line(y).data;
+        let linesize = ui.buffer.get_linesize(y);
+        // 尝试往后找到右括号
+        while right < linesize as i32 && line[right as usize] != right_pat {
+            right += 1;
+        }
+        // 未找到右括号，尝试往前找右括号
+        if right >= linesize as i32 {
+            right = x as i32;
+            while right >= left && left >= 0 {
+                if line[right as usize] != right_pat {
+                    right -= 1;
+                    left -= 1;
+                    continue;
+                }
+                if line[left as usize] == self.get_left_pair(right_pat) {
+                    break;
+                }
+                left -= 1;
+            }
+        } else {
+            // 找到右括号，尝试往前找左括号
+            left = right - 1;
+            while left >= 0 {
+                if line[left as usize] == self.get_left_pair(right_pat) {
+                    break;
+                }
+                left -= 1;
+            }
+        }
+        // 匹配失败
+        if left < 0 {
+            return None;
+        }
+        return Some((left as u16, right as u16));
+    }
+
+    fn is_left_bracket(&self, ch: u8) -> bool {
+        match ch {
+            b'(' | b'[' | b'{' | b'<' => true,
+            _ => false,
+        }
+    }
+
+    fn is_right_bracket(&self, ch: u8) -> bool {
+        match ch {
+            b')' | b']' | b'}' | b'>' => true,
+            _ => false,
+        }
+    }
+
+    fn get_right_pair(&self, ch: u8) -> u8 {
+        match ch {
+            b'(' => b')',
+            b'[' => b']',
+            b'{' => b'}',
+            b'<' => b'>',
+            _ => 0,
+        }
+    }
+
+    fn get_left_pair(&self, ch: u8) -> u8 {
+        match ch {
+            b')' => b'(',
+            b']' => b'[',
+            b'}' => b'{',
+            b'>' => b'<',
+            _ => 0,
+        }
+    }
+
+    fn search_pair(&self, ui: &mut MutexGuard<UiCore>, pat: u8) -> Option<(u16, u16)> {
+        if self.is_left_bracket(pat) {
+            return self.search_pairs_by_left_pat(ui, pat);
+        } else if self.is_right_bracket(pat) {
+            return self.search_pairs_by_right_pat(ui, pat);
+        }
+        return None;
     }
 }
 
@@ -653,27 +840,24 @@ impl KeyEventCallback for Command {
             }
 
             b"G" => {
-                // 移动到最后一行
-                let line_count = ui.buffer.line_count() as u16;
-                let y = ui.cursor.y();
-                let new_y = ui.buffer.goto_line(line_count as usize - 1);
-                ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
-                ui.cursor.move_to_row(new_y)?;
-                ui.cursor.highlight(Some(y))?;
+                self.jump_to_last_line(ui)?;
                 return Ok(WarpUiCallBackType::None);
             }
 
             b"g" => {
-                let buf: &mut [u8] = &mut [0; 8];
-                let _ = io::stdin().read(buf)?;
-                if buf[0] as char == 'g' {
-                    // 移动到第一行
-                    let old_y = ui.cursor.y();
-                    let y = ui.buffer.goto_line(0);
-                    ui.cursor.move_to_row(y)?;
-                    ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
-                    ui.cursor.highlight(Some(old_y))?;
-                }
+                self.jump_to_first_line(ui)?;
+                return Ok(WarpUiCallBackType::None);
+            }
+
+            #[cfg(not(feature = "dragonos"))]
+            b"y" => {
+                self.do_yank(ui)?;
+                return Ok(WarpUiCallBackType::None);
+            }
+
+            #[cfg(not(feature = "dragonos"))]
+            b"p" => {
+                self.do_paste(ui)?;
                 return Ok(WarpUiCallBackType::None);
             }
 

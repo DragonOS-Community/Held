@@ -176,7 +176,6 @@ impl CursorCrtl {
         let size = *WINSIZE.read().unwrap();
         if self.y + lines >= size.rows {
             // 向上滚动
-
             // 保存位置
             let pos = self.store_tmp_pos();
             // 计算需要滚动的行数

@@ -16,7 +16,12 @@ use crate::utils::ui::{
     uicore::{CONTENT_WINSIZE, DEF_STYLE},
 };
 
+#[cfg(feature = "dragonos")]
+use super::reg::REG;
+#[cfg(feature = "dragonos")]
+use crate::utils::buffer::LineBuffer;
 use crate::utils::ui::event::WarpUiCallBackType;
+#[cfg(not(feature = "dragonos"))]
 use arboard::Clipboard;
 
 pub trait InputMode: KeyEventCallback + Debug {
@@ -121,6 +126,41 @@ impl InputMode for LastLine {
 impl InputMode for Insert {
     fn mode_type(&self) -> ModeType {
         ModeType::Insert
+    }
+}
+
+pub trait GetClipboard {
+    fn get_clipboard(&self) -> String;
+    fn set_clipboard(&self, content: &str);
+}
+
+impl GetClipboard for Command {
+    #[cfg(not(feature = "dragonos"))]
+    fn get_clipboard(&self) -> String {
+        let mut ctx = Clipboard::new().unwrap();
+        let content = ctx.get_text().unwrap();
+        return content;
+    }
+    #[cfg(feature = "dragonos")]
+    fn get_clipboard(&self) -> String {
+        let linebuf = match REG.pop() {
+            Some(buf) => buf,
+            None => return String::new(),
+        };
+
+        let content = String::from_utf8_lossy(&linebuf.data).to_string();
+        return content;
+    }
+    #[cfg(not(feature = "dragonos"))]
+    fn set_clipboard(&self, content: &str) {
+        let mut ctx = Clipboard::new().unwrap();
+        ctx.set_text(content.to_string()).unwrap();
+    }
+    #[cfg(feature = "dragonos")]
+    fn set_clipboard(&self, content: &str) {
+        let mut linebuf = LineBuffer::new(Vec::new());
+        linebuf.data.extend_from_slice(content.as_bytes());
+        REG.push(linebuf);
     }
 }
 
@@ -455,7 +495,7 @@ impl Command {
         Ok(())
     }
 
-    #[cfg(not(feature = "dragonos"))]
+    // #[cfg(not(feature = "dragonos"))]
     fn do_yank(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
         let buf = &mut [0; 8];
         let _ = io::stdin().read(buf)?;
@@ -466,15 +506,18 @@ impl Command {
                 let buf = &mut [0; 8];
                 let _ = io::stdin().read(buf)?;
                 let pat = buf[0];
-                assert!(self.is_left_bracket(pat) || self.is_right_bracket(pat));
+                if !self.is_left_bracket(pat) && !self.is_right_bracket(pat) {
+                    return Ok(());
+                }
                 if let Some((left, right)) = self.search_pair(ui, pat) {
                     let mut content: Vec<u8> = Vec::new();
                     content.extend_from_slice(
                         &ui.buffer.get_line(ui.cursor.y()).data[left as usize..right as usize + 1],
                     );
-                    let mut ctx = Clipboard::new().unwrap();
-                    ctx.set_text(String::from_utf8_lossy(&content).to_string())
-                        .unwrap();
+                    // let mut ctx = Clipboard::new().unwrap();
+                    // ctx.set_text(String::from_utf8_lossy(&content).to_string())
+                    //     .unwrap();
+                    self.set_clipboard(&String::from_utf8_lossy(&content).to_string());
                 }
             }
             _ => {}
@@ -482,7 +525,7 @@ impl Command {
         Ok(())
     }
 
-    #[cfg(not(feature = "dragonos"))]
+    // #[cfg(not(feature = "dragonos"))]
     fn yank_word(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
         let old_x = ui.cursor.x();
         let old_y = ui.cursor.y();
@@ -501,26 +544,28 @@ impl Command {
             }
             content.extend_from_slice(&ui.buffer.get_line(y).data[..x as usize + 1]);
         }
-        let mut ctx = Clipboard::new().unwrap();
-        ctx.set_text(String::from_utf8_lossy(&content).to_string())
-            .unwrap();
+        // let mut ctx = Clipboard::new().unwrap();
+        // ctx.set_text(String::from_utf8_lossy(&content).to_string())
+        //     .unwrap();
+        self.set_clipboard(&String::from_utf8_lossy(&content).to_string());
         Ok(())
     }
 
     /// 复制当前行到剪切板
-    #[cfg(not(feature = "dragonos"))]
+    // #[cfg(not(feature = "dragonos"))]
     fn yank_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
         let y = ui.cursor.y();
         let line = ui.buffer.get_line(y);
         // 将当前行的内容复制到剪切板
-        let mut ctx = Clipboard::new().unwrap();
-        ctx.set_text(String::from_utf8_lossy(&line.data).to_string())
-            .unwrap();
+        // let mut ctx = Clipboard::new().unwrap();
+        // ctx.set_text(String::from_utf8_lossy(&line.data).to_string())
+        //     .unwrap();
+        self.set_clipboard(&String::from_utf8_lossy(&line.data).to_string());
         Ok(())
     }
 
     /// 粘贴剪切板内容
-    #[cfg(not(feature = "dragonos"))]
+    // #[cfg(not(feature = "dragonos"))]
     fn paste(&self, ui: &mut MutexGuard<UiCore>, content: &str, x: u16, y: u16) -> io::Result<()> {
         for (idx, ch) in content.as_bytes().iter().enumerate() {
             ui.buffer.insert_char(*ch, x + idx as u16, y);
@@ -532,7 +577,7 @@ impl Command {
     }
 
     /// 向下粘贴一行
-    #[cfg(not(feature = "dragonos"))]
+    // #[cfg(not(feature = "dragonos"))]
     fn paste_line(
         &self,
         ui: &mut MutexGuard<UiCore>,
@@ -549,7 +594,7 @@ impl Command {
         Ok(())
     }
 
-    #[cfg(not(feature = "dragonos"))]
+    // #[cfg(not(feature = "dragonos"))]
     fn do_paste(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
         let x = ui.cursor.x();
         let y = ui.cursor.y();
@@ -558,8 +603,9 @@ impl Command {
             APP_INFO.lock().unwrap().info = "Row is locked".to_string();
             return Err(io::Error::new(io::ErrorKind::Other, "Row is locked"));
         }
-        let mut ctx = Clipboard::new().unwrap();
-        let content = ctx.get_text().unwrap();
+        // let mut ctx = Clipboard::new().unwrap();
+        // let content = ctx.get_text().unwrap();
+        let content = self.get_clipboard();
 
         if content.ends_with('\n') {
             self.paste_line(ui, &content, x, y)?;
@@ -853,13 +899,11 @@ impl KeyEventCallback for Command {
                 return Ok(WarpUiCallBackType::None);
             }
 
-            #[cfg(not(feature = "dragonos"))]
             b"y" => {
                 self.do_yank(ui)?;
                 return Ok(WarpUiCallBackType::None);
             }
 
-            #[cfg(not(feature = "dragonos"))]
             b"p" => {
                 self.do_paste(ui)?;
                 return Ok(WarpUiCallBackType::None);

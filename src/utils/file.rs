@@ -1,5 +1,6 @@
 use std::{
-    fs::{self, File}, io::{self, Read, Seek, Write},
+    fs::{self, File},
+    io::{self, Read, Seek, Write},
 };
 
 use super::buffer::EditBuffer;
@@ -116,12 +117,12 @@ impl FileManager {
         if self.bak.is_some() {
             let bak_file = self.bak.as_mut().unwrap();
             bak_file.seek(io::SeekFrom::Start(0)).unwrap();
-            
+
             let mut buf = Vec::new();
             bak_file.read_to_end(&mut buf).unwrap();
-            
+
             self.file.write_all(&buf)?;
-            
+
             self.file.seek(io::SeekFrom::Start(0))?;
             bak_file.seek(io::SeekFrom::Start(0))?;
         }

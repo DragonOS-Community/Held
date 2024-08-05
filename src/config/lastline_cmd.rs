@@ -186,10 +186,13 @@ impl LastLineCommand {
         let args = args.split(|x| Self::is_split_char(x)).collect::<Vec<_>>();
 
         match args.len() {
-            0 => { //没有参数，锁定当前行
-                ui.buffer.add_line_flags(ui.cursor.cmd_y() as usize -1, LineState::LOCKED)
+            0 => {
+                //没有参数，锁定当前行
+                ui.buffer
+                    .add_line_flags(ui.cursor.cmd_y() as usize - 1, LineState::LOCKED)
             }
-            _ => { //有参数，锁定指定行
+            _ => {
+                //有参数，锁定指定行
                 for arg in args {
                     let line = usize::from_str_radix(arg, 10);
                     if line.is_err() {
@@ -211,10 +214,13 @@ impl LastLineCommand {
         let args = args.split(|x| Self::is_split_char(x)).collect::<Vec<_>>();
 
         match args.len() {
-            0 => { //没有参数，解除标记当前行
-                ui.buffer.remove_line_flags(ui.cursor.cmd_y() as usize -1, LineState::FLAGED)
+            0 => {
+                //没有参数，解除标记当前行
+                ui.buffer
+                    .remove_line_flags(ui.cursor.cmd_y() as usize - 1, LineState::FLAGED)
             }
-            _ => { //有参数，解除标记指定行
+            _ => {
+                //有参数，解除标记指定行
                 for arg in args {
                     let line = usize::from_str_radix(arg, 10);
                     if line.is_err() {
@@ -236,10 +242,13 @@ impl LastLineCommand {
         let args = args.split(|x| Self::is_split_char(x)).collect::<Vec<_>>();
 
         match args.len() {
-            0 => { //没有参数，解除锁定当前行
-                ui.buffer.remove_line_flags(ui.cursor.cmd_y() as usize -1, LineState::LOCKED)
+            0 => {
+                //没有参数，解除锁定当前行
+                ui.buffer
+                    .remove_line_flags(ui.cursor.cmd_y() as usize - 1, LineState::LOCKED)
             }
-            _ => { //有参数，解除锁定指定行
+            _ => {
+                //有参数，解除锁定指定行
                 for arg in args {
                     let line = usize::from_str_radix(arg, 10);
                     if line.is_err() {
@@ -293,7 +302,8 @@ impl LastLineCommand {
                 let end = usize::from_str_radix(args[1], 10);
 
                 if start.is_err() || end.is_err() {
-                    APP_INFO.lock().unwrap().info = "Useage: (dl)|(delete) {start}({'-'}{end})".to_string();
+                    APP_INFO.lock().unwrap().info =
+                        "Useage: (dl)|(delete) {start}({'-'}{end})".to_string();
                     return WarpUiCallBackType::None;
                 }
 

@@ -105,12 +105,13 @@ impl NormalState {
     }
     pub fn exec_j_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
         let exec_count = match self.count {
-            Some(count) => count,
+            Some(count) => count.min(ui.buffer.line_count() - ui.cursor.y() as usize - 1),
             None => 1,
         };
-        for _ in 0..exec_count {
-            self.down(ui)?;
-        }
+        let old_y = ui.cursor.y();
+        let new_y = ui.buffer.goto_line(old_y as usize + exec_count);
+        ui.cursor.move_to_row(new_y)?;
+        ui.cursor.highlight(Some(old_y))?;
         self.reset();
         return Ok(WarpUiCallBackType::None);
     }
@@ -120,12 +121,13 @@ impl NormalState {
 
     pub fn exec_k_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
         let exec_count = match self.count {
-            Some(count) => count,
+            Some(count) => count.min(ui.cursor.y() as usize + ui.buffer.offset()),
             None => 1,
         };
-        for _ in 0..exec_count {
-            self.up(ui)?;
-        }
+        let old_y = ui.cursor.y();
+        let new_y = ui.buffer.goto_line(old_y as usize - exec_count);
+        ui.cursor.move_to_row(new_y)?;
+        ui.cursor.highlight(Some(old_y))?;
         self.reset();
         return Ok(WarpUiCallBackType::None);
     }

@@ -13,8 +13,7 @@ use crate::{
     config::appconfig::AppSetting,
     utils::{
         buffer::EditBuffer, cursor::CursorCrtl, style::StyleManager, terminal::TermManager,
-        ui::InfoLevel,
-        ui::mode::normal::Normal,
+        ui::mode::normal::Normal, ui::InfoLevel,
     },
 };
 

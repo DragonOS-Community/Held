@@ -113,7 +113,7 @@ pub enum ModeType {
     Command,
     LastLine,
     Insert,
-    Normal
+    Normal,
 }
 
 impl InputMode for Command {
@@ -514,7 +514,8 @@ impl Command {
                 let buf = &mut [0; 8];
                 let _ = io::stdin().read(buf)?;
                 let pat = buf[0];
-                if !self.is_left_bracket(pat) && !self.is_right_bracket(pat) && !self.is_paired(pat) {
+                if !self.is_left_bracket(pat) && !self.is_right_bracket(pat) && !self.is_paired(pat)
+                {
                     return Ok(());
                 }
                 if let Some((left, right)) = self.search_pair(ui, pat) {
@@ -703,7 +704,7 @@ impl Command {
         }
         return Some((left as u16, right as u16));
     }
-    
+
     fn search_pair(&self, ui: &mut MutexGuard<UiCore>, pat: u8) -> Option<(u16, u16)> {
         if self.is_left_bracket(pat) {
             return self.search_pairs_by_left_pat(ui, pat);
@@ -728,7 +729,7 @@ impl Command {
             _ => false,
         }
     }
-    
+
     fn is_paired(&self, ch: u8) -> bool {
         match ch {
             b'\'' | b'\"' => true,
@@ -964,7 +965,7 @@ impl KeyEventCallback for Command {
                 self.do_paste(ui)?;
                 return Ok(WarpUiCallBackType::None);
             }
-            
+
             b"n" => return Ok(WarpUiCallBackType::ChangMode(ModeType::Normal)),
 
             _ => {

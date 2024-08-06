@@ -15,7 +15,7 @@ pub struct FileManager {
     is_first_open: bool,
     bak: Option<File>,
 }
-
+#[allow(unused)]
 impl FileManager {
     pub fn new(file_path: String) -> io::Result<Self> {
         let ifo_flag = !PathBuf::from(file_path.clone()).exists();
@@ -86,6 +86,7 @@ impl FileManager {
         if self.bak.is_some() {
             fs::remove_file(format!("{}{}", self.name, BAK_SUFFIX))?;
         }
+        self.is_first_open = false;
 
         Ok(())
     }
@@ -101,6 +102,29 @@ impl FileManager {
 
         if self.bak.is_some() {
             fs::remove_file(format!("{}{}", self.name, BAK_SUFFIX))?;
+        }
+        Ok(())
+    }
+
+    pub fn get_heldbak(&mut self) -> Option<File> {
+        match self.bak.take() {
+            Some(file) => Some(file),
+            None => None,
+        }
+    }
+
+    pub fn restore(&mut self) -> io::Result<()> {
+        if self.bak.is_some() {
+            let bak_file = self.bak.as_mut().unwrap();
+            bak_file.seek(io::SeekFrom::Start(0)).unwrap();
+
+            let mut buf = Vec::new();
+            bak_file.read_to_end(&mut buf).unwrap();
+
+            self.file.write_all(&buf)?;
+
+            self.file.seek(io::SeekFrom::Start(0))?;
+            bak_file.seek(io::SeekFrom::Start(0))?;
         }
         Ok(())
     }

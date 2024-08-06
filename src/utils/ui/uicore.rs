@@ -14,6 +14,7 @@ use crate::{
     utils::{
         buffer::EditBuffer, cursor::CursorCrtl, style::StyleManager, terminal::TermManager,
         ui::InfoLevel,
+        ui::mode::normal::Normal,
     },
 };
 
@@ -26,6 +27,7 @@ use super::{
 };
 
 lazy_static! {
+    static ref NORMAL: Arc<Normal> = Arc::new(Normal);
     static ref COMMAND: Arc<Command> = Arc::new(Command);
     static ref INSERT: Arc<Insert> = Arc::new(Insert);
     static ref LASTLINE: Arc<LastLine> = Arc::new(LastLine::new());
@@ -378,6 +380,7 @@ impl Ui {
                 ui.cursor.write(':')?;
             }
             ModeType::Insert => *self.mode.write().unwrap() = INSERT.clone(),
+            ModeType::Normal => *self.mode.write().unwrap() = NORMAL.clone(),
         }
 
         Ok(())

@@ -264,21 +264,51 @@ impl CursorCrtl {
         Ok(())
     }
 
-    pub fn move_left(&mut self, count: u16) -> io::Result<()> {
-        let result = match self.x {
-            x if x == 0 => Ok(()),
-            x if x < count => self.move_to_columu(0),
-            x => match self.prefix_mode {
-                true if x == self.line_prefix_width - 1 => Ok(()),
-                true if x - count < self.line_prefix_width => self.move_to_columu(0),
-                _ => {
-                    self.x -= count;
-                    self.move_to_columu(x - count)
-                }
-            },
-        };
+    // new
+    // pub fn move_left(&mut self, count: u16) -> io::Result<()> {
+    //     let result = match self.x {
+    //         x if x == 0 => Ok(()),
+    //         x if x < count => self.move_to_columu(0),
+    //         x => match self.prefix_mode {
+    //             true if x == self.line_prefix_width - 1 => Ok(()),
+    //             true if x - count < self.line_prefix_width => self.move_to_columu(0),
+    //             _ => {
+    //                 self.x -= count;
+    //                 self.move_to_columu(x - count)
+    //             }
+    //         },
+    //     };
 
-        result
+    //     result
+    // }
+    // old
+    pub fn move_left(&mut self, mut count: u16) -> io::Result<()> {
+        if count > self.x {
+            return self.move_to_columu(0);
+        }
+        if self.prefix_mode {
+            if self.x == self.line_prefix_width - 1 {
+                return Ok(());
+            }
+            if self.x - count < self.line_prefix_width {
+                return self.move_to_columu(0);
+            }
+        }
+        if self.x == 0 {
+            return Ok(());
+        }
+        if count > self.x {
+            count = self.x - self.line_prefix_width
+        }
+        CursorManager::move_left(count)?;
+
+        if count > self.x {
+            self.x = self.line_prefix_width - 1;
+        } else {
+            self.x -= count;
+        }
+
+        Ok(())
     }
 
     pub fn move_right(&mut self, count: u16) -> io::Result<()> {

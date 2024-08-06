@@ -495,7 +495,6 @@ impl Command {
         Ok(())
     }
 
-    // #[cfg(not(feature = "dragonos"))]
     fn do_yank(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
         let buf = &mut [0; 8];
         let _ = io::stdin().read(buf)?;
@@ -506,7 +505,7 @@ impl Command {
                 let buf = &mut [0; 8];
                 let _ = io::stdin().read(buf)?;
                 let pat = buf[0];
-                if !self.is_left_bracket(pat) && !self.is_right_bracket(pat) {
+                if !self.is_left_bracket(pat) && !self.is_right_bracket(pat) && !self.is_paired(pat) {
                     return Ok(());
                 }
                 if let Some((left, right)) = self.search_pair(ui, pat) {
@@ -514,9 +513,6 @@ impl Command {
                     content.extend_from_slice(
                         &ui.buffer.get_line(ui.cursor.y()).data[left as usize..right as usize + 1],
                     );
-                    // let mut ctx = Clipboard::new().unwrap();
-                    // ctx.set_text(String::from_utf8_lossy(&content).to_string())
-                    //     .unwrap();
                     self.set_clipboard(&String::from_utf8_lossy(&content).to_string());
                 }
             }
@@ -525,7 +521,6 @@ impl Command {
         Ok(())
     }
 
-    // #[cfg(not(feature = "dragonos"))]
     fn yank_word(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
         let old_x = ui.cursor.x();
         let old_y = ui.cursor.y();
@@ -544,28 +539,20 @@ impl Command {
             }
             content.extend_from_slice(&ui.buffer.get_line(y).data[..x as usize + 1]);
         }
-        // let mut ctx = Clipboard::new().unwrap();
-        // ctx.set_text(String::from_utf8_lossy(&content).to_string())
-        //     .unwrap();
         self.set_clipboard(&String::from_utf8_lossy(&content).to_string());
         Ok(())
     }
 
     /// 复制当前行到剪切板
-    // #[cfg(not(feature = "dragonos"))]
     fn yank_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
         let y = ui.cursor.y();
         let line = ui.buffer.get_line(y);
         // 将当前行的内容复制到剪切板
-        // let mut ctx = Clipboard::new().unwrap();
-        // ctx.set_text(String::from_utf8_lossy(&line.data).to_string())
-        //     .unwrap();
         self.set_clipboard(&String::from_utf8_lossy(&line.data).to_string());
         Ok(())
     }
 
     /// 粘贴剪切板内容
-    // #[cfg(not(feature = "dragonos"))]
     fn paste(&self, ui: &mut MutexGuard<UiCore>, content: &str, x: u16, y: u16) -> io::Result<()> {
         for (idx, ch) in content.as_bytes().iter().enumerate() {
             ui.buffer.insert_char(*ch, x + idx as u16, y);
@@ -577,7 +564,6 @@ impl Command {
     }
 
     /// 向下粘贴一行
-    // #[cfg(not(feature = "dragonos"))]
     fn paste_line(
         &self,
         ui: &mut MutexGuard<UiCore>,
@@ -594,7 +580,6 @@ impl Command {
         Ok(())
     }
 
-    // #[cfg(not(feature = "dragonos"))]
     fn do_paste(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
         let x = ui.cursor.x();
         let y = ui.cursor.y();
@@ -603,8 +588,6 @@ impl Command {
             APP_INFO.lock().unwrap().info = "Row is locked".to_string();
             return Err(io::Error::new(io::ErrorKind::Other, "Row is locked"));
         }
-        // let mut ctx = Clipboard::new().unwrap();
-        // let content = ctx.get_text().unwrap();
         let content = self.get_clipboard();
 
         if content.ends_with('\n') {
@@ -711,6 +694,17 @@ impl Command {
         }
         return Some((left as u16, right as u16));
     }
+    
+    fn search_pair(&self, ui: &mut MutexGuard<UiCore>, pat: u8) -> Option<(u16, u16)> {
+        if self.is_left_bracket(pat) {
+            return self.search_pairs_by_left_pat(ui, pat);
+        } else if self.is_right_bracket(pat) {
+            return self.search_pairs_by_right_pat(ui, pat);
+        } else if self.is_paired(pat) {
+            return self.search_paired(ui, pat);
+        }
+        return None;
+    }
 
     fn is_left_bracket(&self, ch: u8) -> bool {
         match ch {
@@ -722,6 +716,13 @@ impl Command {
     fn is_right_bracket(&self, ch: u8) -> bool {
         match ch {
             b')' | b']' | b'}' | b'>' => true,
+            _ => false,
+        }
+    }
+    
+    fn is_paired(&self, ch: u8) -> bool {
+        match ch {
+            b'\'' | b'\"' => true,
             _ => false,
         }
     }
@@ -746,13 +747,53 @@ impl Command {
         }
     }
 
-    fn search_pair(&self, ui: &mut MutexGuard<UiCore>, pat: u8) -> Option<(u16, u16)> {
-        if self.is_left_bracket(pat) {
-            return self.search_pairs_by_left_pat(ui, pat);
-        } else if self.is_right_bracket(pat) {
-            return self.search_pairs_by_right_pat(ui, pat);
+    fn search_paired(&self, ui: &mut MutexGuard<UiCore>, pat: u8) -> Option<(u16, u16)> {
+        let x = ui.cursor.x();
+        let y = ui.cursor.y();
+        let line = ui.buffer.get_line(y).data;
+        let linesize = ui.buffer.get_linesize(y);
+        let mut left = x as i32;
+        let mut right = x as i32;
+        while left >= 0 && pat != line[left as usize] {
+            left -= 1;
         }
-        return None;
+        if left < 0 {
+            left = x as i32;
+            while left <= right && right < linesize as i32 {
+                if pat != line[left as usize] {
+                    left += 1;
+                    right += 1;
+                    continue;
+                }
+                if pat == line[right as usize] && left < right {
+                    return Some((left as u16, right as u16));
+                }
+                right += 1;
+            }
+            return None;
+        } else {
+            right = left + 1;
+            while right < linesize as i32 {
+                if pat == line[right as usize] {
+                    return Some((left as u16, right as u16));
+                }
+                right += 1;
+            }
+            right = left;
+            left -= 1;
+            while left < right && left >= 0 {
+                if pat != line[right as usize] {
+                    right -= 1;
+                    left -= 1;
+                    continue;
+                }
+                if pat == line[left as usize] && left < right {
+                    return Some((left as u16, right as u16));
+                }
+                left -= 1;
+            }
+            return None;
+        }
     }
 }
 

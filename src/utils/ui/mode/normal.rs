@@ -82,7 +82,7 @@ impl KeyEventCallback for NormalState {
         return Ok(WarpUiCallBackType::None);
     }
     fn esc(&self, _ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
-        return Ok(WarpUiCallBackType::None);
+        return Ok(WarpUiCallBackType::ChangMode(ModeType::Command));
     }
 
     fn enter(&self, _ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
@@ -105,7 +105,9 @@ impl NormalState {
     }
     pub fn exec_j_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
         let exec_count = match self.count {
-            Some(count) => count.min(ui.buffer.line_count() - ui.cursor.y() as usize - 1),
+            Some(count) => {
+                count.min(ui.buffer.line_count() - ui.cursor.y() as usize - 1 - ui.buffer.offset())
+            }
             None => 1,
         };
         let old_y = ui.cursor.y();

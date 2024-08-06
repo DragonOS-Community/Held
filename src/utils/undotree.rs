@@ -3,7 +3,7 @@ use std::rc::{Rc, Weak};
 
 /// 编辑命令
 #[allow(dead_code)]
-#[derive(Debug,Clone,PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct EditCommand {
     // 每个命令所执行的动作
     action: Action,
@@ -24,30 +24,20 @@ impl Default for EditCommand {
 #[allow(dead_code)]
 impl EditCommand {
     pub fn new(action: Action, params: Vec<String>) -> Self {
-        Self {
-            action,
-            params,
-        }
+        Self { action, params }
     }
     /// 处理命令，返回对应的反向命令
     pub fn process(&self) -> Result<EditCommand, ()> {
         let res = match self.action {
-            Action::Insert => {
-                EditCommand::new(Action::Delete, self.params.clone())
-            }
-            Action::Delete => {
-                EditCommand::new(Action::Insert, self.params.clone())
-            }
-            Action::Replace => {
-                EditCommand::new(Action::Restore, self.params.clone())
-            }
-            Action::Restore => {
-                EditCommand::new(Action::Replace, self.params.clone())
-            }
-            Action::Move => {
-                EditCommand::new(Action::Move, vec![self.params[1].clone(), self.params[0].clone()])
-            }
-            _ => EditCommand::default()
+            Action::Insert => EditCommand::new(Action::Delete, self.params.clone()),
+            Action::Delete => EditCommand::new(Action::Insert, self.params.clone()),
+            Action::Replace => EditCommand::new(Action::Restore, self.params.clone()),
+            Action::Restore => EditCommand::new(Action::Replace, self.params.clone()),
+            Action::Move => EditCommand::new(
+                Action::Move,
+                vec![self.params[1].clone(), self.params[0].clone()],
+            ),
+            _ => EditCommand::default(),
         };
 
         Ok(res)
@@ -56,7 +46,7 @@ impl EditCommand {
 
 /// 编辑动作
 #[allow(unused)]
-#[derive(Debug,Clone,PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Action {
     // 在起始位置的插入内容
     Insert,
@@ -76,7 +66,6 @@ pub enum Action {
     // 其他动作
     None,
 }
-
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -112,11 +101,11 @@ impl UndoTreeNode {
         self.command.clone()
     }
 
-    pub fn set_parent(&mut self, parent: &Rc<RefCell<Self>>){
+    pub fn set_parent(&mut self, parent: &Rc<RefCell<Self>>) {
         self.parent = Rc::downgrade(parent);
     }
 
-    pub fn set_tree_pointer(&mut self, root: &Rc<RefCell<UndoTree>>){
+    pub fn set_tree_pointer(&mut self, root: &Rc<RefCell<UndoTree>>) {
         self.tree_pointer = Rc::downgrade(root);
     }
 
@@ -124,24 +113,26 @@ impl UndoTreeNode {
         let new_node = UndoTreeNode::new(command);
         new_node.borrow_mut().parent = self.self_pointer.clone();
         new_node.borrow_mut().tree_pointer = self.tree_pointer.clone();
-        self.children=Rc::downgrade(&new_node);
+        self.children = Rc::downgrade(&new_node);
     }
 
     /// 插入子节点
     pub fn insert(&mut self, node: Node) {
         node.borrow_mut().parent = self.self_pointer.clone();
         node.borrow_mut().tree_pointer = self.tree_pointer.clone();
-        self.children=Rc::downgrade(&node);
+        self.children = Rc::downgrade(&node);
     }
 
     /// 删除自身以及子节点
     pub fn delete(&mut self) {
         match self.children.upgrade() {
-            Some(children) => {children.borrow_mut().delete();}
+            Some(children) => {
+                children.borrow_mut().delete();
+            }
             None => {
                 let parent = self.get_parent().unwrap();
                 parent.borrow_mut().children = Weak::new();
-            },
+            }
         }
     }
 
@@ -152,7 +143,6 @@ impl UndoTreeNode {
     pub fn get_children(&self) -> Option<Node> {
         self.children.upgrade()
     }
-
 }
 
 #[allow(dead_code)]
@@ -166,7 +156,7 @@ pub struct UndoTree {
     /// 待撤销的节点代表操作
     to_undo: Vec<Node>,
     /// 待恢复的节点代表操作
-    to_redo: Vec<Node>
+    to_redo: Vec<Node>,
 }
 
 type Node = Rc<RefCell<UndoTreeNode>>;
@@ -198,14 +188,14 @@ impl UndoTree {
     pub fn get_to_redo(&mut self) -> Result<EditCommand, ()> {
         match self.to_redo.pop() {
             Some(node) => Ok(node.borrow().get_command()),
-            None => Err(())
+            None => Err(()),
         }
     }
 
     pub fn get_to_undo(&mut self) -> Result<EditCommand, ()> {
         match self.to_undo.pop() {
-            Some(node) => Ok(node.borrow().get_command().process()?) ,
-            None => Err(())
+            Some(node) => Ok(node.borrow().get_command().process()?),
+            None => Err(()),
         }
     }
 
@@ -215,7 +205,7 @@ impl UndoTree {
             Some(child) => child.borrow_mut().delete(),
             None => {}
         };
-        
+
         self.current_node.borrow_mut().insert(new_node.clone());
         self.current_node = new_node;
         self.to_undo.push(self.current_node.clone());
@@ -227,10 +217,10 @@ impl UndoTree {
     }
 
     /// 撤销操作，返回对应的反向操作
-    pub fn undo(&mut self) -> Result<EditCommand, ()>{
+    pub fn undo(&mut self) -> Result<EditCommand, ()> {
         let command = self.get_to_undo().unwrap();
         let current_node = self.current_node.borrow();
-        let parent = match current_node.get_parent(){
+        let parent = match current_node.get_parent() {
             Some(parent) => parent,
             None => {
                 return Ok(EditCommand::default());
@@ -246,10 +236,10 @@ impl UndoTree {
     }
 
     /// 恢复操作，返回对应的正向操作
-    pub fn redo(&mut self) -> Result<EditCommand, ()>{
+    pub fn redo(&mut self) -> Result<EditCommand, ()> {
         let command = self.get_to_redo().unwrap();
         let current_node = self.current_node.borrow();
-        let child = match current_node.get_children(){
+        let child = match current_node.get_children() {
             Some(child) => child,
             None => {
                 return Ok(EditCommand::default());
@@ -260,12 +250,7 @@ impl UndoTree {
         self.current_node = child;
 
         self.to_undo.push(self.current_node.clone());
-        
+
         Ok(command)
     }
 }
-
-
-
-
-

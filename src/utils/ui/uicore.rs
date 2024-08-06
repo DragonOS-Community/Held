@@ -385,6 +385,9 @@ impl Ui {
 
     fn ui_exit(&self) {
         // 处理未保存退出时的提醒
+
+        // 解决退出程序后颜色没改变的问题
+        StyleManager::reset_color().unwrap();
     }
 }
 

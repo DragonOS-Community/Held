@@ -265,20 +265,30 @@ impl CursorCrtl {
     }
 
     pub fn move_left(&mut self, count: u16) -> io::Result<()> {
-        let result = match self.x {
-            x if x == 0 => Ok(()),
-            x if x < count => self.move_to_columu(0),
-            x => match self.prefix_mode {
-                true if x == self.line_prefix_width - 1 => Ok(()),
-                true if x - count < self.line_prefix_width => self.move_to_columu(0),
-                _ => {
-                    self.x -= count;
-                    self.move_to_columu(x - count)
-                }
-            },
+        // 如果当前光标位置小于或等于行前缀宽度，或者移动的距离大于当前光标位置，则直接移动到行前缀末尾
+        if self.x <= self.line_prefix_width || count > self.x {
+            return self.move_to_columu(0);
+        }
+
+        // 如果启用了前缀模式且光标在前缀区域内，不进行移动
+        if self.prefix_mode && self.x <= self.line_prefix_width {
+            return Ok(());
+        }
+
+        // 计算实际移动的距离
+        let actual_move = if count > self.x - self.line_prefix_width {
+            self.x - self.line_prefix_width
+        } else {
+            count
         };
 
-        result
+        // 执行光标左移操作
+        CursorManager::move_left(actual_move)?;
+
+        // 更新光标位置
+        self.x -= actual_move;
+
+        Ok(())
     }
 
     pub fn move_right(&mut self, count: u16) -> io::Result<()> {

@@ -701,7 +701,7 @@ impl Command {
         } else if self.is_right_bracket(pat) {
             return self.search_pairs_by_right_pat(ui, pat);
         } else if self.is_paired(pat) {
-            return self.search_paired(ui, pat);
+            return self.search_paired_quotes(ui, pat);
         }
         return None;
     }
@@ -747,16 +747,20 @@ impl Command {
         }
     }
 
-    fn search_paired(&self, ui: &mut MutexGuard<UiCore>, pat: u8) -> Option<(u16, u16)> {
+    /// 查找配对的引号
+    /// 返回引号的位置，如果未找到则返回None
+    fn search_paired_quotes(&self, ui: &mut MutexGuard<UiCore>, pat: u8) -> Option<(u16, u16)> {
         let x = ui.cursor.x();
         let y = ui.cursor.y();
         let line = ui.buffer.get_line(y).data;
         let linesize = ui.buffer.get_linesize(y);
         let mut left = x as i32;
         let mut right = x as i32;
+        // 尝试往前找引号
         while left >= 0 && pat != line[left as usize] {
             left -= 1;
         }
+        // 未找到引号，尝试往后找引号
         if left < 0 {
             left = x as i32;
             while left <= right && right < linesize as i32 {
@@ -772,6 +776,7 @@ impl Command {
             }
             return None;
         } else {
+            // 找到引号，尝试往后找引号
             right = left + 1;
             while right < linesize as i32 {
                 if pat == line[right as usize] {
@@ -779,6 +784,7 @@ impl Command {
                 }
                 right += 1;
             }
+            // 未找到引号，尝试继续往前找引号
             right = left;
             left -= 1;
             while left < right && left >= 0 {

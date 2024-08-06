@@ -9,3 +9,4 @@ pub mod style;
 pub mod term_io;
 pub mod terminal;
 pub mod ui;
+pub mod undotree;

@@ -220,7 +220,7 @@ impl KeyEventCallback for Command {
 
             b"I" => {
                 // 切换Insert模式，从行首开始插入字符
-                ui.cursor.move_to_previous_line(0)?;
+                ui.cursor.move_to_columu(0)?;
                 return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
             }
 
@@ -248,7 +248,7 @@ impl KeyEventCallback for Command {
 
             b"O" => {
                 // 切换Insert模式，在当前行的上方插入一个新行开始输入文本
-                ui.cursor.move_to_previous_line(0)?;
+                ui.cursor.move_to_columu(0)?;
                 ui.buffer.input_enter(ui.cursor.x(), ui.cursor.y());
                 return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
             }

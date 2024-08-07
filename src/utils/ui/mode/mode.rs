@@ -4,7 +4,7 @@ use std::sync::{Mutex, MutexGuard};
 use std::{fmt::Debug, io};
 
 use crate::config::lastline_cmd::LastLineCommand;
-use crate::utils::buffer::LineState;
+use crate::utils::buffer::{LineBuffer, LineState};
 #[cfg(feature = "dragonos")]
 use crate::utils::input::KeyEventType;
 
@@ -417,33 +417,6 @@ impl Command {
         return Ok(());
     }
 
-    fn remove_n_word(&self, ui: &mut MutexGuard<UiCore>, n: u16) -> io::Result<()> {
-        let old_x = ui.cursor.x();
-        let old_y = ui.cursor.y();
-        TermManager::clear_current_line()?;
-        TermManager::clear_under_cursor()?;
-        for _ in 0..n {
-            self.jump_to_next_word(ui)?;
-        }
-        let x = ui.cursor.x();
-        let y = ui.cursor.y();
-        if old_y == y {
-            ui.buffer
-                .remove_str(old_x, old_y, x as usize - old_x as usize);
-            ui.render_content(y, 1)?;
-        } else {
-            ui.buffer.delete_until_endl(old_x as usize, old_y as usize);
-            ui.buffer.delete_until_line_beg(x as usize + 1, y as usize);
-            if y - old_y > 1 {
-                ui.buffer.delete_lines(old_y as usize + 1, y as usize - 1);
-            }
-            let linecount = ui.buffer.line_count();
-            ui.render_content(y, linecount - y as usize - 1)?;
-        }
-        ui.cursor.move_to(old_x, old_y)?;
-        Ok(())
-    }
-
     fn remove_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
         TermManager::clear_current_line()?;
         TermManager::clear_under_cursor()?;
@@ -464,18 +437,6 @@ impl Command {
             ui.render_content(0, 1)?;
         }
 
-        Ok(())
-    }
-
-    fn remove_n_line(&self, ui: &mut MutexGuard<UiCore>, n: u16) -> io::Result<()> {
-        let linecount = ui.buffer.line_count() as u16;
-        let y = ui.cursor.y();
-
-        // 实际能删除的行数
-        let to_delete = n.min(linecount - y);
-        for _ in 0..to_delete {
-            self.remove_line(ui)?;
-        }
         Ok(())
     }
 
@@ -578,13 +539,11 @@ impl Command {
         &self,
         ui: &mut MutexGuard<UiCore>,
         content: &str,
-        x: u16,
+        _x: u16,
         y: u16,
     ) -> io::Result<()> {
-        ui.buffer.input_enter(ui.buffer.get_linesize(y) - 1, y);
-        for (idx, ch) in content.as_bytes().iter().enumerate() {
-            ui.buffer.insert_char(*ch, x + idx as u16, y + 1);
-        }
+        let line = LineBuffer::new(content.as_bytes().to_vec());
+        ui.buffer.insert_line(y.into(), &line);
         ui.render_content(y, crossterm::terminal::size()?.0 as usize)?;
         self.down(ui)?;
         Ok(())

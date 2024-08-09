@@ -79,7 +79,6 @@ pub struct EditBuffer {
     locked_lines: RwLock<HashMap<usize, usize>>,
 }
 
-#[allow(unused)]
 impl EditBuffer {
     pub fn new(buf: Vec<u8>) -> Self {
         let mut lines = buf
@@ -148,6 +147,18 @@ impl EditBuffer {
     pub fn get_linesize(&self, line: u16) -> u16 {
         let buf = self.buf.read().unwrap();
         let line = buf.get(self.offset.load(Ordering::SeqCst) + line as usize);
+        if line.is_none() {
+            return 0;
+        }
+
+        let line = line.unwrap();
+
+        line.data.len() as u16
+    }
+
+    pub fn get_linesize_abs(&self, line: u16) -> u16 {
+        let buf = self.buf.read().unwrap();
+        let line = buf.get(line as usize);
         if line.is_none() {
             return 0;
         }
@@ -450,36 +461,6 @@ impl EditBuffer {
         return right;
     }
 
-    pub fn to_nextw_begin_abs(&self, x: u16, y: u16) -> usize {
-        let mut left = x as usize;
-        let mut right = left;
-        let linesize = self.get_linesize(y) as usize;
-        let buf = self.buf.read().unwrap();
-        let line = match buf.get(y as usize) {
-            Some(line) => line,
-            None => return x as usize,
-        };
-
-        while left <= right && right < linesize {
-            let lchar = line[left] as char;
-            let rchar = line[right] as char;
-            if rchar.is_ascii_punctuation() && right != x.into() {
-                break;
-            }
-            if !(lchar == ' ' || lchar == '\t') {
-                left += 1;
-                right += 1;
-                continue;
-            }
-            if rchar != ' ' && rchar != '\t' {
-                break;
-            }
-            right += 1;
-        }
-
-        return right;
-    }
-
     /// 搜索下一个单词的末尾
     /// 如果为该行最后一单词，返回该行长度
     pub fn search_nextw_end(&self, x: u16, y: u16) -> usize {
@@ -517,75 +498,6 @@ impl EditBuffer {
         return right;
     }
 
-    pub fn to_nextw_end_abs(&self, x: u16, y: u16) -> usize {
-        let mut left = x as usize;
-        let mut right = left;
-        let linesize = self.get_linesize(y) as usize;
-        let buf = self.buf.read().unwrap();
-        let line = match buf.get(y as usize) {
-            Some(line) => line,
-            None => return x as usize,
-        };
-
-        while left <= right && right < linesize {
-            let lchar = line[left] as char;
-            let rchar = line[right] as char;
-            if rchar.is_ascii_punctuation() && right != x.into() {
-                break;
-            }
-            if lchar == ' ' || lchar == '\t' {
-                left += 1;
-                right += 1;
-                continue;
-            }
-            if rchar == ' ' || rchar == '\t' {
-                if right == x as usize + 1 {
-                    left = right;
-                    continue;
-                }
-                right -= 1;
-                break;
-            }
-            right += 1;
-        }
-
-        return right;
-    }
-
-    pub fn to_prevw_beg_abs(&self, x: u16, y: u16) -> usize {
-        let mut left = x as i32;
-        let mut right = left;
-        let buf = self.buf.read().unwrap();
-        let line = match buf.get(y as usize) {
-            Some(line) => line,
-            None => return x as usize,
-        };
-        while left <= right && left >= 0 {
-            let lchar = line[left as usize] as char;
-            let rchar = line[right as usize] as char;
-
-            if rchar.is_ascii_punctuation() && right != x.into() {
-                break;
-            }
-            if rchar == ' ' || rchar == '\t' {
-                left -= 1;
-                right -= 1;
-                continue;
-            }
-
-            if lchar == ' ' || lchar == '\t' {
-                if left + 1 == x.into() {
-                    right = left;
-                    continue;
-                }
-                return left as usize + 1;
-            }
-
-            left -= 1;
-        }
-        return 0;
-    }
-
     /// 返回前一单词首字母位置，如果是当前行首单词，返回 None
     pub fn search_prevw_begin(&self, x: u16, y: u16) -> Option<usize> {
         let mut left = x as i32;
@@ -599,8 +511,8 @@ impl EditBuffer {
             let lchar = line[left as usize] as char;
             let rchar = line[right as usize] as char;
 
-            if rchar.is_ascii_punctuation() && right != x.into() {
-                break;
+            if lchar.is_ascii_punctuation() && left != x.into() {
+                return Some(left as usize);
             }
             if rchar == ' ' || rchar == '\t' {
                 left -= 1;
@@ -619,6 +531,36 @@ impl EditBuffer {
             left -= 1;
         }
         return None;
+    }
+    pub fn search_prevw_begin_abs(&self, x: u16, abs_y: u16) -> usize {
+        let mut left = x as i32;
+        let mut right = left;
+        let buf = self.buf.read().unwrap();
+        let line = buf.get(abs_y as usize).unwrap();
+        while left <= right && left >= 0 {
+            let lchar = line[left as usize] as char;
+            let rchar = line[right as usize] as char;
+
+            if lchar.is_ascii_punctuation() && left != x.into() {
+                return left as usize;
+            }
+            if rchar == ' ' || rchar == '\t' {
+                left -= 1;
+                right -= 1;
+                continue;
+            }
+
+            if lchar == ' ' || lchar == '\t' {
+                if left + 1 == x.into() {
+                    right = left;
+                    continue;
+                }
+                return left as usize + 1;
+            }
+
+            left -= 1;
+        }
+        return 0;
     }
 }
 

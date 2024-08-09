@@ -18,8 +18,6 @@ use crate::utils::ui::{
 
 #[cfg(feature = "dragonos")]
 use super::reg::REG;
-#[cfg(feature = "dragonos")]
-use crate::utils::buffer::LineBuffer;
 use crate::utils::ui::event::WarpUiCallBackType;
 #[cfg(not(feature = "dragonos"))]
 use arboard::Clipboard;
@@ -138,12 +136,7 @@ impl InputMode for Normal {
     }
 }
 
-pub trait GetClipboard {
-    fn get_clipboard(&self) -> String;
-    fn set_clipboard(&self, content: &str);
-}
-
-impl GetClipboard for Command {
+pub trait ClipboardOperation {
     #[cfg(not(feature = "dragonos"))]
     fn get_clipboard(&self) -> String {
         let mut ctx = Clipboard::new().unwrap();
@@ -172,6 +165,8 @@ impl GetClipboard for Command {
         REG.push(linebuf);
     }
 }
+
+impl ClipboardOperation for Command {}
 
 #[derive(Debug)]
 pub struct Command;
@@ -233,27 +228,6 @@ impl Command {
         }
 
         Ok(())
-    }
-
-    fn jump_to_first_char(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
-        // 移动到行第一个单词的首字母
-        let first_char_pos = {
-            let line = ui.buffer.get_line(ui.cursor.y()).data;
-            let mut idx = 0;
-            for char in line {
-                if char == b" "[0] {
-                    idx += 1;
-                } else if char == b"\t"[0] {
-                    idx += 4;
-                } else {
-                    break;
-                }
-            }
-            idx
-        };
-
-        ui.cursor.move_to_columu(first_char_pos as u16)?;
-        return Ok(WarpUiCallBackType::None);
     }
 
     fn do_delete_on_d_clicked(
@@ -319,104 +293,6 @@ impl Command {
         return Ok(WarpUiCallBackType::None);
     }
 
-    fn jump_to_next_word(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
-        let x = ui.cursor.x();
-        let y = ui.cursor.y();
-        let pos = ui.buffer.search_nextw_begin(x, y);
-        let linesize = ui.buffer.get_linesize(y);
-
-        if pos < linesize as usize {
-            // 如果下一个单词在当前行，则移动光标到该单词的起始位置
-            ui.cursor.move_to_columu(pos as u16)?;
-        } else if y as usize + ui.buffer.offset() < ui.buffer.line_count() - 1 {
-            // 如果当前行不是最后一行，则移动到下一行的单词起始位置
-            let next_word_pos = ui.buffer.search_nextw_begin(0, y + 1) as u16;
-            self.down(ui)?;
-            ui.cursor.move_to_columu(next_word_pos)?;
-            ui.cursor.highlight(Some(y))?;
-        } else {
-            // 如果当前行是最后一行，则移动到当前行的末尾
-            ui.cursor.move_to_columu(linesize as u16 - 1)?;
-        }
-        return Ok(WarpUiCallBackType::None);
-    }
-
-    fn jump_to_nextw_ending(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
-        let x = ui.cursor.x();
-        let y = ui.cursor.y();
-        let linesize = ui.buffer.get_linesize(y) as usize;
-
-        // 如果光标已经在当前行的末尾或最后一个字符(x + 2)，则尝试移动到下一行的末尾或单词末尾
-        if x as usize + 2 >= linesize {
-            // y的绝对位置
-            let abs_y = ui.buffer.offset() + y as usize;
-            if abs_y < ui.buffer.line_count() - 1 {
-                let next_end_pos = ui.buffer.search_nextw_end(0, y + 1) as u16;
-                self.down(ui)?;
-                ui.cursor.move_to_columu(next_end_pos)?;
-                ui.cursor.highlight(Some(y))?;
-            } else {
-                // 如果已经是最后一行，则保持光标在当前行的末尾
-                ui.cursor.move_to_columu(linesize as u16 - 1)?;
-            }
-            return Ok(WarpUiCallBackType::None);
-        }
-
-        let next_end_pos = ui.buffer.search_nextw_end(x, y) as u16;
-        // 如果下一个单词的末尾在当前行，则移动光标到该单词的末尾
-        ui.cursor
-            .move_to_columu(next_end_pos.min(linesize as u16 - 2))?;
-        return Ok(WarpUiCallBackType::None);
-    }
-
-    fn jump_to_prevw_beg(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
-        let x = ui.cursor.x();
-        let y = ui.cursor.y();
-
-        // 如果光标已在行首，则尝试移动到上一行的单词首字母
-        if x == 0 {
-            if y > 0 {
-                let end_of_prev_line = ui.buffer.get_linesize(y - 1) - 1;
-                let prev_word_pos = match ui.buffer.search_prevw_begin(end_of_prev_line, y - 1) {
-                    Some(pos) => pos,
-                    None => 0,
-                };
-                ui.cursor.move_to(prev_word_pos as u16, y - 1)?;
-                ui.cursor.highlight(Some(y))?;
-            } else {
-                // 如果已经是第一行，则保持光标在当前行的起始位置
-                ui.cursor.move_to_columu(0)?;
-            }
-            return Ok(WarpUiCallBackType::None);
-        }
-
-        let prev_word_pos = match ui.buffer.search_prevw_begin(x, y) {
-            Some(pos) => pos,
-            None => 0,
-        };
-
-        ui.cursor.move_to(prev_word_pos as u16, y)?;
-        return Ok(WarpUiCallBackType::None);
-    }
-
-    fn remove_word(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
-        let x = ui.cursor.x();
-        let y = ui.cursor.y();
-        let next_word_pos = ui.buffer.search_nextw_begin(x, y);
-        let linesize = ui.buffer.get_linesize(y);
-
-        // 如果下一个单词在当前行，则删除当前单词
-        if next_word_pos < linesize.into() {
-            ui.buffer.remove_str(x, y, next_word_pos - x as usize);
-        } else {
-            // 如果下一个单词在下一行，则删除当前行剩余部分
-            self.left(ui)?;
-            ui.buffer.delete_until_endl(x.into(), y.into());
-        }
-        ui.render_content(y, 1)?;
-        return Ok(());
-    }
-
     fn remove_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
         TermManager::clear_current_line()?;
         TermManager::clear_under_cursor()?;
@@ -438,17 +314,6 @@ impl Command {
         }
 
         Ok(())
-    }
-
-    /// 移动到最后一行
-    fn jump_to_last_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
-        let line_count = ui.buffer.line_count() as u16;
-        let y = ui.cursor.y();
-        let new_y = ui.buffer.goto_line(line_count as usize - 1);
-        ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
-        ui.cursor.move_to_row(new_y)?;
-        ui.cursor.highlight(Some(y))?;
-        return Ok(());
     }
 
     /// 移动到第一行
@@ -565,210 +430,6 @@ impl Command {
             self.paste(ui, &content, x, y)?;
         }
         Ok(())
-    }
-
-    /// 定位最近的一对括号，根据左括号定位右括号
-    /// 如果找到则返回括号的位置，否则返回None
-    fn search_pairs_by_left_pat(
-        &self,
-        ui: &mut MutexGuard<UiCore>,
-        left_pat: u8,
-    ) -> Option<(u16, u16)> {
-        let x = ui.cursor.x();
-        let y = ui.cursor.y();
-        let mut left = x as i32;
-        let mut right = x as i32;
-        let line = ui.buffer.get_line(y).data;
-        let linesize = ui.buffer.get_linesize(y);
-        let right_pat = self.get_right_pair(left_pat);
-        // 尝试往前找到左括号
-        while left >= 0 && line[left as usize] != left_pat {
-            left -= 1;
-        }
-        // 未找到左括号，尝试往后找左括号
-        if left < 0 {
-            left = x as i32;
-            while left <= right && right < linesize as i32 {
-                if line[left as usize] != left_pat {
-                    left += 1;
-                    right += 1;
-                    continue;
-                }
-                if right_pat == line[right as usize] {
-                    break;
-                }
-                right += 1;
-            }
-        } else {
-            // 找到左括号，尝试往后找右括号
-            right = left + 1;
-            while right < linesize as i32 {
-                if line[right as usize] == right_pat {
-                    break;
-                }
-                right += 1;
-            }
-        }
-        // 匹配失败
-        if right >= linesize.into() {
-            return None;
-        }
-        return Some((left as u16, right as u16));
-    }
-
-    /// 定位最近的一对括号，根据右括号定位左括号
-    /// 返回左括号和右括号的位置
-    fn search_pairs_by_right_pat(
-        &self,
-        ui: &mut MutexGuard<UiCore>,
-        right_pat: u8,
-    ) -> Option<(u16, u16)> {
-        let x = ui.cursor.x();
-        let y = ui.cursor.y();
-        let mut left = x as i32;
-        let mut right = x as i32;
-        let line = ui.buffer.get_line(y).data;
-        let linesize = ui.buffer.get_linesize(y);
-        // 尝试往后找到右括号
-        while right < linesize as i32 && line[right as usize] != right_pat {
-            right += 1;
-        }
-        // 未找到右括号，尝试往前找右括号
-        if right >= linesize as i32 {
-            right = x as i32;
-            while right >= left && left >= 0 {
-                if line[right as usize] != right_pat {
-                    right -= 1;
-                    left -= 1;
-                    continue;
-                }
-                if line[left as usize] == self.get_left_pair(right_pat) {
-                    break;
-                }
-                left -= 1;
-            }
-        } else {
-            // 找到右括号，尝试往前找左括号
-            left = right - 1;
-            while left >= 0 {
-                if line[left as usize] == self.get_left_pair(right_pat) {
-                    break;
-                }
-                left -= 1;
-            }
-        }
-        // 匹配失败
-        if left < 0 {
-            return None;
-        }
-        return Some((left as u16, right as u16));
-    }
-
-    fn search_pair(&self, ui: &mut MutexGuard<UiCore>, pat: u8) -> Option<(u16, u16)> {
-        if self.is_left_bracket(pat) {
-            return self.search_pairs_by_left_pat(ui, pat);
-        } else if self.is_right_bracket(pat) {
-            return self.search_pairs_by_right_pat(ui, pat);
-        } else if self.is_paired(pat) {
-            return self.search_paired_quotes(ui, pat);
-        }
-        return None;
-    }
-
-    fn is_left_bracket(&self, ch: u8) -> bool {
-        match ch {
-            b'(' | b'[' | b'{' | b'<' => true,
-            _ => false,
-        }
-    }
-
-    fn is_right_bracket(&self, ch: u8) -> bool {
-        match ch {
-            b')' | b']' | b'}' | b'>' => true,
-            _ => false,
-        }
-    }
-
-    fn is_paired(&self, ch: u8) -> bool {
-        match ch {
-            b'\'' | b'\"' => true,
-            _ => false,
-        }
-    }
-
-    fn get_right_pair(&self, ch: u8) -> u8 {
-        match ch {
-            b'(' => b')',
-            b'[' => b']',
-            b'{' => b'}',
-            b'<' => b'>',
-            _ => 0,
-        }
-    }
-
-    fn get_left_pair(&self, ch: u8) -> u8 {
-        match ch {
-            b')' => b'(',
-            b']' => b'[',
-            b'}' => b'{',
-            b'>' => b'<',
-            _ => 0,
-        }
-    }
-
-    /// 查找配对的引号
-    /// 返回引号的位置，如果未找到则返回None
-    fn search_paired_quotes(&self, ui: &mut MutexGuard<UiCore>, pat: u8) -> Option<(u16, u16)> {
-        let x = ui.cursor.x();
-        let y = ui.cursor.y();
-        let line = ui.buffer.get_line(y).data;
-        let linesize = ui.buffer.get_linesize(y);
-        let mut left = x as i32;
-        let mut right = x as i32;
-        // 尝试往前找引号
-        while left >= 0 && pat != line[left as usize] {
-            left -= 1;
-        }
-        // 未找到引号，尝试往后找引号
-        if left < 0 {
-            left = x as i32;
-            while left <= right && right < linesize as i32 {
-                if pat != line[left as usize] {
-                    left += 1;
-                    right += 1;
-                    continue;
-                }
-                if pat == line[right as usize] && left < right {
-                    return Some((left as u16, right as u16));
-                }
-                right += 1;
-            }
-            return None;
-        } else {
-            // 找到引号，尝试往后找引号
-            right = left + 1;
-            while right < linesize as i32 {
-                if pat == line[right as usize] {
-                    return Some((left as u16, right as u16));
-                }
-                right += 1;
-            }
-            // 未找到引号，尝试继续往前找引号
-            right = left;
-            left -= 1;
-            while left < right && left >= 0 {
-                if pat != line[right as usize] {
-                    right -= 1;
-                    left -= 1;
-                    continue;
-                }
-                if pat == line[left as usize] && left < right {
-                    return Some((left as u16, right as u16));
-                }
-                left -= 1;
-            }
-            return None;
-        }
     }
 }
 

@@ -22,24 +22,27 @@
 
 use lazy_static::lazy_static;
 
-use crate::utils::terminal::TermManager;
+use crate::config::cmd;
 use crate::utils::ui::event::KeyEventCallback;
 use crate::utils::ui::event::WarpUiCallBackType;
+use crate::utils::ui::uicore::Ui;
 use crate::utils::ui::uicore::UiCore;
 use crate::utils::ui::uicore::CONTENT_WINSIZE;
 use std::io;
 use std::sync::{Mutex, MutexGuard};
 
+use super::mode::ClipboardOperation;
 use super::mode::ModeType;
 
 #[derive(Debug)]
 pub enum BufOpArg {
-    Around,  // 操作引号内乃至引号的内容
-    Inside,  // 操作引号内的内容
-    Line,    // 操作整行
-    Word,    // 操作单词
-    WordEnd, // 操作单词的末尾
-    Block,   // 操作块
+    Around,    // 操作引号内乃至引号的内容
+    Inside,    // 操作引号内的内容
+    Line,      // 操作整行
+    Word,      // 操作单词
+    WordEnd,   // 操作单词的末尾
+    WordBegin, // 操作单词的开头
+    Block,     // 操作块
 }
 
 #[derive(Debug)]
@@ -47,8 +50,8 @@ pub struct NormalState {
     pub cmdchar: Option<char>,
     pub count: Option<usize>,
     pub count0: bool,
-    pub start_pos: Option<(usize, usize)>,
-    pub end_pos: Option<(usize, usize)>,
+    pub start_pos: Option<(u16, u16)>,
+    pub end_pos: Option<(u16, u16)>,
     pub cmdbuf: Vec<u8>,
     pub buf_op_arg: Option<BufOpArg>,
 }
@@ -120,9 +123,31 @@ impl KeyEventCallback for Normal {
             b"g" => {
                 normal_state.on_g_clicked(ui);
             }
-            _ => {
-                normal_state.reset();
+            b"G" => {
+                normal_state.on_G_clicked(ui);
             }
+            b"b" => {
+                normal_state.on_b_clicked(ui);
+            }
+            b":" => {
+                if normal_state.cmdchar.is_none() {
+                    ui.cursor.store_pos();
+                    return Ok(WarpUiCallBackType::ChangMode(ModeType::LastLine));
+                }
+            }
+            b"$" => {
+                normal_state.on_dollar_clicked();
+            }
+            b"e" => {
+                normal_state.on_e_clicked(ui);
+            }
+            b"f" => {
+                normal_state.on_f_clicked();
+            }
+            b"F" => {
+                normal_state.on_F_clicked();
+            }
+            _ => {}
         }
         return normal_state.handle(ui);
     }
@@ -172,7 +197,9 @@ impl NormalState {
     }
 
     pub fn on_h_clicked(&mut self) {
-        self.cmdchar = Some('h');
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('h');
+        }
     }
     /// 向左移动数列
     pub fn exec_h_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
@@ -224,7 +251,9 @@ impl NormalState {
         return Ok(WarpUiCallBackType::None);
     }
     pub fn on_k_clicked(&mut self) {
-        self.cmdchar = Some('k');
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('k');
+        }
     }
 
     /// 向上移动数行
@@ -263,7 +292,9 @@ impl NormalState {
     }
 
     pub fn on_l_clicked(&mut self) {
-        self.cmdchar = Some('l');
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('l');
+        }
     }
 
     /// 向右移动数列
@@ -288,7 +319,9 @@ impl NormalState {
     }
 
     pub fn on_i_clicked(&mut self) {
-        self.cmdchar = Some('i');
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('i');
+        }
     }
     pub fn exec_i_cmd(&mut self, _ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
         self.exit()?;
@@ -314,7 +347,7 @@ impl NormalState {
     /// 处理输入的0
     pub fn on_zero_clicked(&mut self) {
         // 如果0是命令的一部分，不再处理
-        if !self.count0 {
+        if !self.count0 && self.cmdchar.is_none() {
             self.cmdchar = Some('0');
             self.count0 = true;
         }
@@ -327,54 +360,21 @@ impl NormalState {
         }
     }
 
+    /// 处理输入的d
     pub fn on_d_clicked(&mut self) {
         match self.cmdchar {
             None => {
+                // 处理d
                 self.cmdchar = Some('d');
             }
             Some('d') => {
+                // 处理dd
                 self.buf_op_arg = Some(BufOpArg::Line);
             }
             _ => {
                 self.reset();
             }
         }
-    }
-
-    fn remove_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
-        TermManager::clear_current_line()?;
-        TermManager::clear_under_cursor()?;
-        let y = ui.cursor.y() as usize;
-        let old_line_count = ui.buffer.line_count();
-        let old_offset = ui.buffer.offset();
-
-        let count = old_line_count - y as usize;
-        ui.buffer.delete_line(y + ui.buffer.offset() as usize);
-        ui.render_content(y as u16, count.max(1))?;
-
-        if y + old_offset == old_line_count - 1 {
-            self.up(ui)?;
-        }
-
-        if old_line_count == 1 {
-            ui.cursor.move_to_columu(0)?;
-            ui.buffer.insert_char('\n' as u8, 0, 0);
-            ui.render_content(0, 1)?;
-        }
-
-        Ok(())
-    }
-
-    fn remove_n_line(&self, ui: &mut MutexGuard<UiCore>, n: u16) -> io::Result<()> {
-        let linecount = ui.buffer.line_count() as u16;
-        let y = ui.cursor.y();
-
-        // 实际能删除的行数
-        let to_delete = n.min(linecount - y);
-        for _ in 0..to_delete {
-            self.remove_line(ui)?;
-        }
-        Ok(())
     }
 
     pub fn exec_d_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
@@ -384,6 +384,7 @@ impl NormalState {
         };
         match self.buf_op_arg {
             Some(BufOpArg::Line) => {
+                // 删除行
                 let result = self
                     .remove_n_line(ui, count)
                     .map(|_| WarpUiCallBackType::None);
@@ -391,6 +392,7 @@ impl NormalState {
                 return result;
             }
             Some(BufOpArg::Word) => {
+                // 删除单词
                 for _ in 0..count {
                     self.remove_word(ui)?;
                 }
@@ -403,29 +405,12 @@ impl NormalState {
         }
     }
 
-    fn remove_word(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
-        let x = ui.cursor.x();
-        let y = ui.cursor.y();
-        let next_word_pos = ui.buffer.search_nextw_begin(x, y);
-        let linesize = ui.buffer.get_linesize(y);
-
-        // 如果下一个单词在当前行，则删除当前单词
-        if next_word_pos < linesize.into() {
-            ui.buffer.remove_str(x, y, next_word_pos - x as usize);
-        } else {
-            // 如果下一个单词在下一行，则删除当前行剩余部分
-            self.left(ui)?;
-            ui.buffer.delete_line(y.into());
-            self.down(ui)?;
-        }
-        ui.render_content(y, 1)?;
-        return Ok(());
-    }
-
     pub fn on_w_clicked(&mut self) {
         if self.cmdchar.is_none() {
+            // 按单词移动
             self.cmdchar = Some('w');
         } else {
+            // 按单词操作，具体由self.cmdchar决定
             self.buf_op_arg = Some(BufOpArg::Word);
         }
     }
@@ -442,53 +427,12 @@ impl NormalState {
         return Ok(WarpUiCallBackType::None);
     }
 
-    // fn locate_next_word(&self, ui: &mut MutexGuard<UiCore>, x: u16, y: u16) -> (u16, u16) {
-    //     let pos = ui.buffer.search_nextw_begin(x, y);
-    //     let linesize = ui.buffer.get_linesize(y);
-
-    //     if pos < linesize as usize {
-    //         // 如果下一个单词在当前行，则移动光标到该单词的起始位置
-    //         return (pos as u16, y);
-    //     } else if y as usize + ui.buffer.offset() < ui.buffer.line_count() - 1 {
-    //         // 如果当前行不是最后一行，则移动到下一行的单词起始位置
-    //         let next_word_pos = ui.buffer.search_nextw_begin(0, y + 1) as u16;
-    //         let next_line_size = ui.buffer.get_linesize(y + 1);
-    //         let next_word_pos = next_word_pos.min(next_line_size) as u16;
-    //         return (next_word_pos, y + 1);
-    //     } else {
-    //         // 如果当前行是最后一行，则移动到当前行的末尾
-    //         return (linesize as u16 - 1, y);
-    //     }
-    // }
-
-    fn jump_to_next_word(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
-        let x = ui.cursor.x();
-        let y = ui.cursor.y();
-        let pos = ui.buffer.search_nextw_begin(x, y);
-        let linesize = ui.buffer.get_linesize(y);
-
-        if pos < linesize as usize {
-            // 如果下一个单词在当前行，则移动光标到该单词的起始位置
-            ui.cursor.move_to_columu(pos as u16)?;
-        } else if y as usize + ui.buffer.offset() < ui.buffer.line_count() - 1 {
-            // 如果当前行不是最后一行，则移动到下一行的单词起始位置
-            let next_word_pos = ui.buffer.search_nextw_begin(0, y + 1) as u16;
-            self.down(ui)?;
-            ui.cursor.move_to_columu(next_word_pos)?;
-            ui.cursor.highlight(Some(y))?;
-        } else {
-            // 如果当前行是最后一行，则移动到当前行的末尾
-            ui.cursor.move_to_columu(linesize as u16 - 1)?;
-        }
-        return Ok(WarpUiCallBackType::None);
-    }
-
     fn on_g_clicked(&mut self, ui: &mut MutexGuard<UiCore>) {
         if self.cmdchar.is_none() {
             self.cmdchar = Some('g');
         } else {
             let first_line_size = ui.buffer.get_linesize(0);
-            self.end_pos = Some((ui.cursor.x().min(first_line_size - 1) as usize, 0));
+            self.end_pos = Some((ui.cursor.x().min(first_line_size - 1), 0));
         }
     }
 
@@ -499,10 +443,146 @@ impl NormalState {
         }
         let old_y = ui.cursor.y();
         let (x, y) = end_pos.unwrap();
-        let y = ui.buffer.goto_line(y);
+        let y = ui.buffer.goto_line(y.into());
         ui.cursor.move_to(x as u16, y as u16)?;
         ui.render_content(y, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
         ui.cursor.highlight(Some(old_y))?;
+        self.reset();
+        return Ok(WarpUiCallBackType::None);
+    }
+
+    #[allow(non_snake_case)]
+    fn on_G_clicked(&mut self, _ui: &mut MutexGuard<UiCore>) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('G');
+        }
+    }
+
+    #[allow(non_snake_case)]
+    fn exec_G_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        let lineidx = match self.count {
+            Some(count) => count - 1,
+            None => ui.buffer.line_count() - 1,
+        };
+        self.move_to_line(ui, lineidx as u16)?;
+        self.reset();
+        return Ok(WarpUiCallBackType::None);
+    }
+
+    fn on_b_clicked(&mut self, ui: &mut MutexGuard<UiCore>) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('b');
+        } else {
+            self.buf_op_arg = Some(BufOpArg::WordBegin);
+        }
+        let count = match self.count {
+            Some(count) => count,
+            None => 1,
+        };
+        let mut pos = (ui.cursor.x(), ui.cursor.y() + ui.buffer.offset() as u16);
+        for _ in 0..count {
+            pos = self.locate_prevw_begin(ui, pos.0, pos.1);
+        }
+        self.end_pos = Some(pos);
+    }
+
+    fn exec_b_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        let end_pos = self.end_pos.unwrap();
+        self.move_to_line(ui, end_pos.1)?;
+        ui.cursor.move_to_columu(end_pos.0)?;
+        self.reset();
+        return Ok(WarpUiCallBackType::None);
+    }
+
+    fn on_dollar_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('$');
+        }
+    }
+
+    fn exec_dollar_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        let line_end = ui.buffer.get_linesize(ui.cursor.y()) as u16 - 1;
+        ui.cursor.move_to_columu(line_end)?;
+        self.reset();
+        return Ok(WarpUiCallBackType::None);
+    }
+
+    fn on_e_clicked(&mut self, ui: &mut MutexGuard<UiCore>) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('e');
+        } else {
+            self.buf_op_arg = Some(BufOpArg::WordEnd);
+        }
+        let count = match self.count {
+            Some(count) => count,
+            None => 1,
+        };
+        let mut pos = (ui.cursor.x(), ui.cursor.y());
+        for _ in 0..count {
+            pos = self.locate_nextw_ending(ui, pos.0, pos.1);
+        }
+        self.end_pos = Some(pos);
+    }
+
+    fn exec_e_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        let end_pos = self.end_pos;
+        if end_pos.is_none() {
+            return Ok(WarpUiCallBackType::None);
+        }
+        let end_pos = end_pos.unwrap();
+        self.move_to_line(ui, end_pos.1)?;
+        ui.cursor.move_to_columu(end_pos.0)?;
+        self.reset();
+        return Ok(WarpUiCallBackType::None);
+    }
+
+    fn on_f_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('f');
+        }
+    }
+
+    fn exec_f_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        if self.cmdbuf.len() < 2 {
+            return Ok(WarpUiCallBackType::None);
+        }
+        let to_find = self.cmdbuf.last().unwrap().clone() as char;
+        let old_x = ui.cursor.x();
+        let old_y = ui.cursor.y();
+        let line =
+            String::from_utf8_lossy(&ui.buffer.get_line(old_y)[old_x as usize..]).to_string();
+        let pos = line.find(to_find);
+        if pos.is_none() {
+            return Ok(WarpUiCallBackType::None);
+        }
+        ui.cursor
+            .move_to_columu((old_x + pos.unwrap() as u16) as u16)?;
+        self.reset();
+        return Ok(WarpUiCallBackType::None);
+    }
+
+    #[allow(non_snake_case)]
+    fn on_F_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('F');
+        }
+    }
+
+    #[allow(non_snake_case)]
+    fn exec_F_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        if self.cmdbuf.len() < 2 {
+            return Ok(WarpUiCallBackType::None);
+        }
+        let to_find = self.cmdbuf.last().unwrap().clone() as char;
+        let old_x = ui.cursor.x();
+        let old_y = ui.cursor.y();
+        let line =
+            String::from_utf8_lossy(&ui.buffer.get_line(old_y)[..old_x as usize]).to_string();
+        let pos = line.rfind(to_find);
+        if pos.is_none() {
+            return Ok(WarpUiCallBackType::None);
+        }
+        ui.cursor.move_to_columu(pos.unwrap() as u16)?;
         self.reset();
         return Ok(WarpUiCallBackType::None);
     }
@@ -528,6 +608,12 @@ impl StateMachine for NormalState {
             'd' => self.exec_d_cmd(ui),
             'w' => self.exec_w_cmd(ui),
             'g' => self.exec_g_cmd(ui),
+            'G' => self.exec_G_cmd(ui),
+            'b' => self.exec_b_cmd(ui),
+            '$' => self.exec_dollar_cmd(ui),
+            'e' => self.exec_e_cmd(ui),
+            'f' => self.exec_f_cmd(ui),
+            'F' => self.exec_F_cmd(ui),
             _ => return Ok(WarpUiCallBackType::None),
         }
     }
@@ -537,3 +623,5 @@ impl StateMachine for NormalState {
         Ok(())
     }
 }
+
+impl ClipboardOperation for NormalState {}

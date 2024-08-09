@@ -70,7 +70,7 @@ impl LastLineCommand {
         }
     }
 
-    const fn is_split_char(x: char) -> bool {
+    pub const fn is_split_char(x: char) -> bool {
         x == ',' || x == ';' || x == ':' || x == '/' || x.is_ascii_whitespace()
     }
 

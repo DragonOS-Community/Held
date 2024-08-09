@@ -10,7 +10,7 @@ use crossterm::{
 use lazy_static::lazy_static;
 
 use crate::{
-    config::appconfig::AppSetting,
+    config::{appconfig::AppSetting, lastline_cmd::LastLineCommand},
     utils::{
         buffer::EditBuffer, cursor::CursorCrtl, style::StyleManager, terminal::TermManager,
         ui::InfoLevel,
@@ -228,6 +228,101 @@ impl UiCore {
         self.cursor.restore_tmp_pos(pos)?;
 
         self.cursor.highlight(Some(self.cursor.y() + count))?;
+
+        Ok(())
+    }
+
+    pub fn delete_range(&mut self, start_pos: (u16, u16), end_pos: (u16, u16)) -> io::Result<()> {
+        let content_winsize = *CONTENT_WINSIZE.read().unwrap();
+
+        if start_pos.0 < end_pos.0 || start_pos.1 < end_pos.1 {
+            APP_INFO.lock().unwrap().info =
+                "Useage: {delete}|{d} {start_row}{start_col} {end_row}{end_col}".to_string();
+            return Ok(());
+        }
+
+        let (start_x, start_y) = start_pos;
+        let (end_x, end_y) = end_pos;
+
+        let buffer_line_max = self.buffer.line_count() as u16;
+        let strat_y = start_y.min(buffer_line_max - 1);
+        let end_y = end_y.min(buffer_line_max - 1);
+
+        if strat_y == end_y {
+            self.buffer
+                .remove_str(start_x, start_y, (end_x - start_x + 1) as usize);
+        } else {
+            self.buffer.remove_str(start_x, start_y, usize::MAX);
+            self.buffer.remove_str(0, end_y, end_x as usize + 1);
+            self.buffer
+                .delete_lines((start_y + 1) as usize, (end_y - 1) as usize);
+        }
+        if self.buffer.offset() > self.buffer.line_count() {
+            self.buffer.set_offset(self.buffer.line_count());
+        }
+
+        let y = self.cursor.y();
+
+        self.render_content(y, (content_winsize.rows - y) as usize - 1)
+            .unwrap();
+        Ok(())
+    }
+
+    pub fn goto_line(&mut self, args: &str) -> io::Result<()> {
+        if args.is_empty() {
+            let mut info = APP_INFO.lock().unwrap();
+            info.level = InfoLevel::Info;
+            info.info = "Useage: {goto}|{gt} {row}{' '|','|';'|':'|'/'}{col}".to_string();
+            return Ok(());
+        }
+        let (y, x) = {
+            let a = args
+                .split(|x| LastLineCommand::is_split_char(x))
+                .collect::<Vec<_>>();
+
+            if a.len() == 1 {
+                (u16::from_str_radix(a[0], 10), Ok(1))
+            } else {
+                (u16::from_str_radix(a[0], 10), u16::from_str_radix(a[1], 10))
+            }
+        };
+        if y.is_err() {
+            let mut info = APP_INFO.lock().unwrap();
+            info.level = InfoLevel::Info;
+            info.info = "Useage: goto {row}({' '|','|';'|':'|'/'}{col})".to_string();
+        }
+
+        let content_winsize = *CONTENT_WINSIZE.read().unwrap();
+        let content_line_max = content_winsize.rows;
+        let buf_line_max = self.buffer.line_count() as u16;
+        let mut y = y.unwrap().min(buf_line_max);
+        let mut x = x.unwrap_or(1).min(self.buffer.get_linesize(y));
+
+        // 以便后面能够得到正确的索引
+        if y == 0 {
+            y += 1;
+        }
+        if x == 0 {
+            x += 1;
+        }
+
+        x -= 1;
+        y -= 1;
+
+        self.cursor.set_prefix_mode(true);
+        self.cursor.restore_pos().unwrap();
+
+        let lasty = self.cursor.y();
+        let y = self.buffer.goto_line(y as usize);
+        self.cursor.move_to(x, y).unwrap();
+
+        let pos = self.cursor.store_tmp_pos();
+        self.render_content(0, content_line_max as usize).unwrap();
+        self.cursor.restore_tmp_pos(pos).unwrap();
+
+        self.cursor.highlight(Some(lasty)).unwrap();
+
+        self.cursor.store_pos();
 
         Ok(())
     }

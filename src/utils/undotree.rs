@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 /// 编辑命令
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct EditCommand {
     // 每个命令所执行的动作
@@ -21,7 +20,6 @@ impl Default for EditCommand {
     }
 }
 
-#[allow(dead_code)]
 impl EditCommand {
     pub fn new(action: Action, params: Vec<String>) -> Self {
         Self { action, params }
@@ -67,13 +65,12 @@ pub enum Action {
     None,
 }
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct UndoTreeNode {
     // 父节点
     parent: Weak<RefCell<UndoTreeNode>>,
     // 子节点
-    children: Weak<RefCell<UndoTreeNode>>,
+    children: Vec<Rc<RefCell<UndoTreeNode>>>,
     // 命令
     command: EditCommand,
     // 指向自身的弱引用
@@ -82,12 +79,23 @@ pub struct UndoTreeNode {
     tree_pointer: Weak<RefCell<UndoTree>>,
 }
 
-#[allow(dead_code)]
+impl Clone for UndoTreeNode {
+    fn clone(&self) -> Self {
+        Self {
+            parent: self.parent.clone(),
+            children: self.children.clone(),
+            command: self.command.clone(),
+            self_pointer: self.self_pointer.clone(),
+            tree_pointer: self.tree_pointer.clone(),
+        }
+    }
+}
+
 impl UndoTreeNode {
     pub fn new(command: EditCommand) -> Node {
         let result = Rc::new(RefCell::new(UndoTreeNode {
             parent: Weak::new(),
-            children: Weak::new(),
+            children: Vec::new(),
             command,
             self_pointer: Weak::new(),
             tree_pointer: Weak::new(),
@@ -101,7 +109,7 @@ impl UndoTreeNode {
         self.command.clone()
     }
 
-    pub fn set_parent(&mut self, parent: &Rc<RefCell<Self>>) {
+    pub fn set_parent(&mut self, parent: &Node) {
         self.parent = Rc::downgrade(parent);
     }
 
@@ -111,28 +119,27 @@ impl UndoTreeNode {
 
     pub fn insert_with_command(&mut self, command: EditCommand) {
         let new_node = UndoTreeNode::new(command);
-        new_node.borrow_mut().parent = self.self_pointer.clone();
-        new_node.borrow_mut().tree_pointer = self.tree_pointer.clone();
-        self.children = Rc::downgrade(&new_node);
+        self.insert(new_node);
     }
 
     /// 插入子节点
     pub fn insert(&mut self, node: Node) {
         node.borrow_mut().parent = self.self_pointer.clone();
-        node.borrow_mut().tree_pointer = self.tree_pointer.clone();
-        self.children = Rc::downgrade(&node);
+        node.borrow_mut()
+            .set_tree_pointer(&self.tree_pointer.upgrade().unwrap());
+        self.children.push(node);
     }
 
     /// 删除自身以及子节点
     pub fn delete(&mut self) {
-        match self.children.upgrade() {
-            Some(children) => {
-                children.borrow_mut().delete();
-            }
-            None => {
-                let parent = self.get_parent().unwrap();
-                parent.borrow_mut().children = Weak::new();
-            }
+        for child in &self.children {
+            child.borrow_mut().delete();
+        }
+        if let Some(parent) = self.parent.upgrade() {
+            parent
+                .borrow_mut()
+                .children
+                .retain(|x| !Rc::ptr_eq(x, &self.self_pointer.upgrade().unwrap()));
         }
     }
 
@@ -140,8 +147,8 @@ impl UndoTreeNode {
         self.parent.upgrade()
     }
 
-    pub fn get_children(&self) -> Option<Node> {
-        self.children.upgrade()
+    pub fn get_children(&self) -> Vec<Node> {
+        self.children.clone()
     }
 }
 
@@ -201,11 +208,6 @@ impl UndoTree {
 
     /// 插入新操作，生成新节点
     pub fn push(&mut self, new_node: Node) {
-        match self.current_node.borrow().children.upgrade() {
-            Some(child) => child.borrow_mut().delete(),
-            None => {}
-        };
-
         self.current_node.borrow_mut().insert(new_node.clone());
         self.current_node = new_node;
         self.to_undo.push(self.current_node.clone());
@@ -218,39 +220,32 @@ impl UndoTree {
 
     /// 撤销操作，返回对应的反向操作
     pub fn undo(&mut self) -> Result<EditCommand, ()> {
-        let command = self.get_to_undo().unwrap();
-        let current_node = self.current_node.borrow();
-        let parent = match current_node.get_parent() {
-            Some(parent) => parent,
-            None => {
-                return Ok(EditCommand::default());
+        match self.get_to_undo() {
+            Ok(command) => {
+                let current_node = self.current_node.clone();
+                if let Some(parent) = current_node.borrow().get_parent() {
+                    self.to_redo.push(self.current_node.clone());
+                    self.current_node = parent;
+                }
+                Ok(command)
             }
-        };
-        drop(current_node);
-
-        self.to_redo.push(self.current_node.clone());
-
-        self.current_node = parent;
-
-        Ok(command)
+            Err(e) => Err(e),
+        }
     }
 
     /// 恢复操作，返回对应的正向操作
     pub fn redo(&mut self) -> Result<EditCommand, ()> {
-        let command = self.get_to_redo().unwrap();
-        let current_node = self.current_node.borrow();
-        let child = match current_node.get_children() {
-            Some(child) => child,
-            None => {
-                return Ok(EditCommand::default());
+        match self.get_to_redo() {
+            Ok(command) => {
+                let current_node = self.current_node.borrow();
+                if let Some(child) = current_node.get_children().first().cloned() {
+                    drop(current_node);
+                    self.current_node = child;
+                    self.to_undo.push(self.current_node.clone());
+                }
+                Ok(command)
             }
-        };
-        drop(current_node);
-
-        self.current_node = child;
-
-        self.to_undo.push(self.current_node.clone());
-
-        Ok(command)
+            Err(e) => Err(e),
+        }
     }
 }

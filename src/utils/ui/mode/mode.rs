@@ -4,7 +4,7 @@ use std::sync::{Mutex, MutexGuard};
 use std::{fmt::Debug, io};
 
 use crate::config::lastline_cmd::LastLineCommand;
-use crate::utils::buffer::LineState;
+use crate::utils::buffer::{LineBuffer, LineState};
 #[cfg(feature = "dragonos")]
 use crate::utils::input::KeyEventType;
 
@@ -18,8 +18,6 @@ use crate::utils::ui::{
 
 #[cfg(feature = "dragonos")]
 use super::reg::REG;
-#[cfg(feature = "dragonos")]
-use crate::utils::buffer::LineBuffer;
 use crate::utils::ui::event::WarpUiCallBackType;
 #[cfg(not(feature = "dragonos"))]
 use arboard::Clipboard;
@@ -569,13 +567,11 @@ impl Command {
         &self,
         ui: &mut MutexGuard<UiCore>,
         content: &str,
-        x: u16,
+        _x: u16,
         y: u16,
     ) -> io::Result<()> {
-        ui.buffer.input_enter(ui.buffer.get_linesize(y) - 1, y);
-        for (idx, ch) in content.as_bytes().iter().enumerate() {
-            ui.buffer.insert_char(*ch, x + idx as u16, y + 1);
-        }
+        let linebuf = LineBuffer::new(content.as_bytes().to_vec());
+        ui.buffer.insert_line(y.into(), &linebuf);
         ui.render_content(y, crossterm::terminal::size()?.0 as usize)?;
         self.down(ui)?;
         Ok(())

@@ -22,10 +22,8 @@
 
 use lazy_static::lazy_static;
 
-use crate::config::cmd;
 use crate::utils::ui::event::KeyEventCallback;
 use crate::utils::ui::event::WarpUiCallBackType;
-use crate::utils::ui::uicore::Ui;
 use crate::utils::ui::uicore::UiCore;
 use crate::utils::ui::uicore::CONTENT_WINSIZE;
 use std::io;

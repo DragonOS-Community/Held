@@ -4,41 +4,69 @@ use std::rc::{Rc, Weak};
 /// 编辑命令
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct EditCommand {
-    // 每个命令所执行的动作
-    action: Action,
+    // 删除动作，如果有的话
+    action_delete: Option<Action>,
 
-    // 每个命令所需要的参数, 如操作的起始位置[0],结束位置[1],插入内容[2]等
-    params: Vec<String>,
+    // 插入操作，如果有的话
+    action_insert: Option<Action>,
+
+    // 对于第几行进行的操作（目前就只实现针对单独一个文件的）
+    line_number: u16,
 }
 
 impl Default for EditCommand {
     fn default() -> Self {
         Self {
-            action: Action::None,
-            params: Vec::new(),
+            action_delete: None,
+            action_insert: None,
+            line_number: 0,
         }
     }
 }
 
 impl EditCommand {
-    pub fn new(action: Action, params: Vec<String>) -> Self {
-        Self { action, params }
+    pub fn new(action_delete: Action, action_insert: Action, line_number: u16) -> Self {
+        Self {
+            action_delete: Some(action_delete),
+            action_insert: Some(action_insert),
+            line_number,
+        }
     }
+
     /// 处理命令，返回对应的反向命令
     pub fn process(&self) -> Result<EditCommand, ()> {
-        let res = match self.action {
-            Action::Insert => EditCommand::new(Action::Delete, self.params.clone()),
-            Action::Delete => EditCommand::new(Action::Insert, self.params.clone()),
-            Action::Replace => EditCommand::new(Action::Restore, self.params.clone()),
-            Action::Restore => EditCommand::new(Action::Replace, self.params.clone()),
-            Action::Move => EditCommand::new(
-                Action::Move,
-                vec![self.params[1].clone(), self.params[0].clone()],
-            ),
-            _ => EditCommand::default(),
-        };
+        let mut content_to_insert = String::new();
+        let mut content_to_delete = String::new();
+        let action_insert;
+        let action_delete;
+        if let Action::Delete(s) = self.action_delete.as_ref().unwrap() {
+            content_to_insert = s.clone();
+        }
+        if let Action::Insert(s) = self.action_insert.as_ref().unwrap() {
+            content_to_delete = s.clone();
+        }
+        action_delete = Action::Delete(content_to_delete);
+        action_insert = Action::Insert(content_to_insert);
+
+        let res = EditCommand::new(action_delete, action_insert, self.line_number);
 
         Ok(res)
+    }
+
+    /// 拿到这命令里的删除内容用于删除
+    pub fn get_delete_content(&self) -> Option<String> {
+        if let Some(Action::Delete(s)) = self.action_delete.as_ref() {
+            return Some(s.clone());
+        }
+        None
+    }
+
+    /// 拿到这命令里的插入内容用于重新插入
+    pub fn get_insert_content(&self) -> Option<String> {
+        if let Some(Action::Insert(s)) = self.action_insert.as_ref() {
+            return Some(s.clone());
+        }
+        None
     }
 }
 
@@ -46,19 +74,13 @@ impl EditCommand {
 #[allow(unused)]
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Action {
-    // 在起始位置的插入内容
-    Insert,
+    // 插入内容
+    Insert(String),
 
-    // 删除的起始位置和结束位置
-    Delete,
+    // 删除内容
+    Delete(String),
 
-    // 替换的起始位置、结束位置和替换内容
-    Replace,
-
-    // 恢复的位置和内容
-    Restore,
-
-    // 移动的起始位置和结束位置
+    // 移动(未实现)
     Move,
 
     // 其他动作
@@ -77,19 +99,25 @@ pub struct UndoTreeNode {
     self_pointer: Weak<RefCell<UndoTreeNode>>,
     // 指向UndoTree的弱引用
     tree_pointer: Weak<RefCell<UndoTree>>,
+    // 是不是移动操作（未实现）
+    // is_move: bool,
+    // 指向上一次操作的指针，用于另一种撤销方式
+    last_operation_pointer: Option<Node>,
+    // 指向下一次操作的指针，用于另一种撤销方式
+    next_operation_pointer: Option<Node>,
 }
 
-impl Clone for UndoTreeNode {
-    fn clone(&self) -> Self {
-        Self {
-            parent: self.parent.clone(),
-            children: self.children.clone(),
-            command: self.command.clone(),
-            self_pointer: self.self_pointer.clone(),
-            tree_pointer: self.tree_pointer.clone(),
-        }
-    }
-}
+// impl Clone for UndoTreeNode {
+//     fn clone(&self) -> Self {
+//         Self {
+//             parent: self.parent.clone(),
+//             children: self.children.clone(),
+//             command: self.command.clone(),
+//             self_pointer: self.self_pointer.clone(),
+//             tree_pointer: self.tree_pointer.clone(),
+//         }
+//     }
+// }
 
 impl UndoTreeNode {
     pub fn new(command: EditCommand) -> Node {
@@ -99,6 +127,8 @@ impl UndoTreeNode {
             command,
             self_pointer: Weak::new(),
             tree_pointer: Weak::new(),
+            last_operation_pointer: None,
+            next_operation_pointer: None,
         }));
         result.borrow_mut().self_pointer = Rc::downgrade(&result);
         result.borrow_mut().parent = Rc::downgrade(&result);
@@ -154,15 +184,18 @@ impl UndoTreeNode {
 
 #[allow(dead_code)]
 #[derive(Debug)]
-/// 编辑树
+/// 撤销树
+/// 用于记录编辑历史，实现撤销和恢复功能
+/// 支持两种撤销方式，可以根据用户的需要来选择哪种撤销方式
+/// 此撤销树仅用于记录和返回相关操作，相对独立于其他部分
 pub struct UndoTree {
     /// 根节点
     root: Node,
     /// 当前节点
     current_node: Node,
-    /// 待撤销的节点代表操作
+    /// 待撤销的节点，代表操作
     to_undo: Vec<Node>,
-    /// 待恢复的节点代表操作
+    /// 待恢复的节点，代表操作
     to_redo: Vec<Node>,
 }
 
@@ -192,14 +225,14 @@ impl UndoTree {
         self.current_node = node;
     }
 
-    pub fn get_to_redo(&mut self) -> Result<EditCommand, ()> {
+    fn get_to_redo(&mut self) -> Result<EditCommand, ()> {
         match self.to_redo.pop() {
             Some(node) => Ok(node.borrow().get_command()),
             None => Err(()),
         }
     }
 
-    pub fn get_to_undo(&mut self) -> Result<EditCommand, ()> {
+    fn get_to_undo(&mut self) -> Result<EditCommand, ()> {
         match self.to_undo.pop() {
             Some(node) => Ok(node.borrow().get_command().process()?),
             None => Err(()),
@@ -246,6 +279,30 @@ impl UndoTree {
                 Ok(command)
             }
             Err(e) => Err(e),
+        }
+    }
+
+    /// 另一种撤销方式，会跟踪上一次操作的指针，返回对应的反向操作
+    pub fn undo_last_operation(&mut self) -> Result<EditCommand, ()> {
+        let last_node = self.current_node.borrow().last_operation_pointer.clone();
+        if let Some(node) = last_node {
+            let command = self.current_node.borrow().get_command();
+            self.current_node = node;
+            Ok(command.process()?)
+        } else {
+            Err(())
+        }
+    }
+
+    /// 另一种撤销方式，会跟踪下一次操作的指针，返回对应的正向操作
+    pub fn redo_next_operation(&mut self) -> Result<EditCommand, ()> {
+        let next_node = self.current_node.borrow().next_operation_pointer.clone();
+        if let Some(node) = next_node {
+            let command = self.current_node.borrow().get_command();
+            self.current_node = node;
+            Ok(command)
+        } else {
+            Err(())
         }
     }
 }

@@ -161,6 +161,10 @@ pub trait KeyEventCallback {
         ui: &mut MutexGuard<UiCore>,
         data: &[u8],
     ) -> io::Result<WarpUiCallBackType>;
+    fn t(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        ui.delete_range((2,3), (9,4))?;
+        Ok(WarpUiCallBackType::None)
+    }
 }
 
 #[derive(Debug, PartialEq)]

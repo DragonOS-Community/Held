@@ -235,7 +235,7 @@ impl UiCore {
     pub fn delete_range(&mut self, start_pos: (u16, u16), end_pos: (u16, u16)) -> io::Result<()> {
         let content_winsize = *CONTENT_WINSIZE.read().unwrap();
 
-        if start_pos.0 < end_pos.0 || start_pos.1 < end_pos.1 {
+        if start_pos.0 > end_pos.0 || start_pos.1 > end_pos.1 {
             APP_INFO.lock().unwrap().info =
                 "Useage: {delete}|{d} {start_row}{start_col} {end_row}{end_col}".to_string();
             return Ok(());
@@ -263,7 +263,7 @@ impl UiCore {
 
         let y = self.cursor.y();
 
-        self.render_content(y, (content_winsize.rows - y) as usize - 1)
+        self.render_content(y - 1, (content_winsize.rows - y) as usize - 1)
             .unwrap();
         Ok(())
     }
@@ -309,6 +309,7 @@ impl UiCore {
         x -= 1;
         y -= 1;
 
+        self.cursor.store_pos();
         self.cursor.set_prefix_mode(true);
         self.cursor.restore_pos().unwrap();
 
@@ -321,8 +322,6 @@ impl UiCore {
         self.cursor.restore_tmp_pos(pos).unwrap();
 
         self.cursor.highlight(Some(lasty)).unwrap();
-
-        self.cursor.store_pos();
 
         Ok(())
     }

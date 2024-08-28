@@ -519,6 +519,11 @@ impl KeyEventCallback for Command {
                 return Ok(WarpUiCallBackType::None);
             }
 
+            b"t" => {
+                self.t(ui)?;
+                Ok(WarpUiCallBackType::None)
+            }
+
             _ => {
                 return Ok(WarpUiCallBackType::None);
             }

@@ -381,6 +381,23 @@ impl Command {
         ui.cursor.move_to(prev_word_pos as u16, y)?;
         return Ok(WarpUiCallBackType::None);
     }
+
+    pub fn move_to_nlines_of_screen(
+        &self,
+        ui: &mut MutexGuard<UiCore>,
+        n: usize,
+    ) -> io::Result<()> {
+        let y = ui.cursor.y() as usize;
+
+        let offset = ui.buffer.offset();
+
+        let new_y = ui.buffer.goto_line(offset + n);
+        ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
+        ui.cursor.move_to_row(new_y)?;
+        ui.cursor.highlight(Some(y as u16))?;
+
+        Ok(())
+    }
 }
 
 impl KeyEventCallback for Command {
@@ -411,8 +428,43 @@ impl KeyEventCallback for Command {
                 return Ok(WarpUiCallBackType::ChangMode(ModeType::LastLine));
             }
 
-            b"i" | b"I" => {
-                // 切换Insert模式
+            b"i" => {
+                // 切换Insert模式，从光标前开始插入字符
+                return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
+            }
+
+            b"I" => {
+                // 切换Insert模式，从行首开始插入字符
+                ui.cursor.move_to_columu(0)?;
+                return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
+            }
+
+            b"a" => {
+                // 切换Insert模式，在光标后开始输入文本
+                ui.cursor.move_right(1)?;
+                return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
+            }
+
+            b"A" => {
+                // 切换Insert模式，在行尾开始输入文本
+                let linesize = ui.buffer.get_linesize(ui.cursor.y());
+                ui.cursor.move_to_columu(linesize - 1)?;
+                return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
+            }
+
+            b"o" => {
+                // 切换Insert模式，在当前行的下方插入一个新行开始输入文本
+                let linesize = ui.buffer.get_linesize(ui.cursor.y());
+                ui.cursor.move_to_columu(linesize - 1)?;
+                ui.buffer.input_enter(ui.cursor.x(), ui.cursor.y());
+                ui.cursor.move_to_nextline(1)?;
+                return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
+            }
+
+            b"O" => {
+                // 切换Insert模式，在当前行的上方插入一个新行开始输入文本
+                ui.cursor.move_to_columu(0)?;
+                ui.buffer.input_enter(ui.cursor.x(), ui.cursor.y());
                 return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
             }
 
@@ -428,19 +480,10 @@ impl KeyEventCallback for Command {
             //  向右
             b"l" => self.right(ui),
 
+            //  移动到当前屏幕最后一行
             b"L" => {
-                // 设置当前行lock
-                let flag = ui.buffer.line_flags(ui.cursor.y());
-                let offset = ui.buffer.offset();
-                if flag.contains(LineState::LOCKED) {
-                    ui.buffer
-                        .remove_line_flags(offset + ui.cursor.y() as usize, LineState::LOCKED);
-                } else {
-                    ui.buffer
-                        .add_line_flags(offset + ui.cursor.y() as usize, LineState::LOCKED);
-                }
-                let y = ui.cursor.y();
-                ui.render_content(y, 1)?;
+                let win_size = CONTENT_WINSIZE.read().unwrap().rows as usize;
+                self.move_to_nlines_of_screen(ui, win_size - 1)?;
                 return Ok(WarpUiCallBackType::None);
             }
 
@@ -476,11 +519,6 @@ impl KeyEventCallback for Command {
             b"W" => {
                 // 跳转到下一个flag行
                 self.jump_to_next_flag(ui, LineState::FLAGED)?;
-                return Ok(WarpUiCallBackType::None);
-            }
-
-            b"a" | b"A" => {
-                self.jump_to_previous_flag(ui, LineState::LOCKED)?;
                 return Ok(WarpUiCallBackType::None);
             }
 
@@ -531,6 +569,17 @@ impl KeyEventCallback for Command {
                 return Ok(WarpUiCallBackType::ChangMode(ModeType::Normal));
             }
             
+            b"H" => {
+                self.move_to_nlines_of_screen(ui, 0)?;
+                return Ok(WarpUiCallBackType::None);
+            }
+
+            b"M" => {
+                let win_size = CONTENT_WINSIZE.read().unwrap().rows as usize;
+                self.move_to_nlines_of_screen(ui, win_size / 2)?;
+                return Ok(WarpUiCallBackType::None);
+            }
+
             _ => {
                 return Ok(WarpUiCallBackType::None);
             }

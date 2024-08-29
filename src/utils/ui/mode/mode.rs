@@ -374,31 +374,17 @@ impl Command {
         return Ok(WarpUiCallBackType::None);
     }
 
-    // 移动光标到当前窗口最上方的一行
-    pub fn move_cursor_to_screen_top(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+    pub fn move_to_nlines_of_screen(
+        &self,
+        ui: &mut MutexGuard<UiCore>,
+        n: usize,
+    ) -> io::Result<()> {
         let y = ui.cursor.y() as usize;
 
-        if y == 0 {
-            return Ok(());
-        }
-
         let offset = ui.buffer.offset();
-        let new_y = ui.buffer.goto_line(offset);
+
+        let new_y = ui.buffer.goto_line(offset + n);
         ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
-        ui.cursor.move_to_row(new_y)?;
-        ui.cursor.highlight(Some(y as u16))?;
-
-        Ok(())
-    }
-
-    pub fn move_cursor_to_screen_middle(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
-        let y = ui.cursor.y() as usize;
-        let win_rows = CONTENT_WINSIZE.read().unwrap().rows as usize;
-
-        let offset = ui.buffer.offset();
-
-        let new_y = ui.buffer.goto_line(offset + win_rows / 2);
-        ui.render_content(0, win_rows)?;
         ui.cursor.move_to_row(new_y)?;
         ui.cursor.highlight(Some(y as u16))?;
 
@@ -451,19 +437,10 @@ impl KeyEventCallback for Command {
             //  向右
             b"l" => self.right(ui),
 
+            //  移动到当前屏幕最后一行
             b"L" => {
-                // 设置当前行lock
-                let flag = ui.buffer.line_flags(ui.cursor.y());
-                let offset = ui.buffer.offset();
-                if flag.contains(LineState::LOCKED) {
-                    ui.buffer
-                        .remove_line_flags(offset + ui.cursor.y() as usize, LineState::LOCKED);
-                } else {
-                    ui.buffer
-                        .add_line_flags(offset + ui.cursor.y() as usize, LineState::LOCKED);
-                }
-                let y = ui.cursor.y();
-                ui.render_content(y, 1)?;
+                let win_size = CONTENT_WINSIZE.read().unwrap().rows as usize;
+                self.move_to_nlines_of_screen(ui, win_size - 1)?;
                 return Ok(WarpUiCallBackType::None);
             }
 
@@ -551,12 +528,13 @@ impl KeyEventCallback for Command {
             }
 
             b"H" => {
-                self.move_cursor_to_screen_top(ui)?;
+                self.move_to_nlines_of_screen(ui, 0)?;
                 return Ok(WarpUiCallBackType::None);
             }
 
             b"M" => {
-                self.move_cursor_to_screen_middle(ui)?;
+                let win_size = CONTENT_WINSIZE.read().unwrap().rows as usize;
+                self.move_to_nlines_of_screen(ui, win_size / 2)?;
                 return Ok(WarpUiCallBackType::None);
             }
 

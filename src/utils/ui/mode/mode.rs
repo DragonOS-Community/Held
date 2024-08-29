@@ -568,7 +568,7 @@ impl KeyEventCallback for Command {
             b"n" => {
                 return Ok(WarpUiCallBackType::ChangMode(ModeType::Normal));
             }
-            
+
             b"H" => {
                 self.move_to_nlines_of_screen(ui, 0)?;
                 return Ok(WarpUiCallBackType::None);

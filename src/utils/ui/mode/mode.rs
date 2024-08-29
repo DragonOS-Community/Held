@@ -18,6 +18,8 @@ use crate::utils::ui::{
 
 use crate::utils::ui::event::WarpUiCallBackType;
 
+use super::normal::Normal;
+
 pub trait InputMode: KeyEventCallback + Debug {
     fn mode_type(&self) -> ModeType;
 
@@ -105,6 +107,7 @@ pub enum ModeType {
     Command,
     LastLine,
     Insert,
+    Normal,
 }
 
 impl InputMode for Command {
@@ -120,6 +123,11 @@ impl InputMode for LastLine {
 impl InputMode for Insert {
     fn mode_type(&self) -> ModeType {
         ModeType::Insert
+    }
+}
+impl InputMode for Normal {
+    fn mode_type(&self) -> ModeType {
+        ModeType::Normal
     }
 }
 
@@ -519,6 +527,10 @@ impl KeyEventCallback for Command {
                 return Ok(WarpUiCallBackType::None);
             }
 
+            b"n" => {
+                return Ok(WarpUiCallBackType::ChangMode(ModeType::Normal));
+            }
+            
             _ => {
                 return Ok(WarpUiCallBackType::None);
             }

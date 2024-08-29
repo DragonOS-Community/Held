@@ -403,8 +403,43 @@ impl KeyEventCallback for Command {
                 return Ok(WarpUiCallBackType::ChangMode(ModeType::LastLine));
             }
 
-            b"i" | b"I" => {
-                // 切换Insert模式
+            b"i" => {
+                // 切换Insert模式，从光标前开始插入字符
+                return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
+            }
+
+            b"I" => {
+                // 切换Insert模式，从行首开始插入字符
+                ui.cursor.move_to_columu(0)?;
+                return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
+            }
+
+            b"a" => {
+                // 切换Insert模式，在光标后开始输入文本
+                ui.cursor.move_right(1)?;
+                return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
+            }
+
+            b"A" => {
+                // 切换Insert模式，在行尾开始输入文本
+                let linesize = ui.buffer.get_linesize(ui.cursor.y());
+                ui.cursor.move_to_columu(linesize - 1)?;
+                return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
+            }
+
+            b"o" => {
+                // 切换Insert模式，在当前行的下方插入一个新行开始输入文本
+                let linesize = ui.buffer.get_linesize(ui.cursor.y());
+                ui.cursor.move_to_columu(linesize - 1)?;
+                ui.buffer.input_enter(ui.cursor.x(), ui.cursor.y());
+                ui.cursor.move_to_nextline(1)?;
+                return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
+            }
+
+            b"O" => {
+                // 切换Insert模式，在当前行的上方插入一个新行开始输入文本
+                ui.cursor.move_to_columu(0)?;
+                ui.buffer.input_enter(ui.cursor.x(), ui.cursor.y());
                 return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
             }
 
@@ -468,11 +503,6 @@ impl KeyEventCallback for Command {
             b"W" => {
                 // 跳转到下一个flag行
                 self.jump_to_next_flag(ui, LineState::FLAGED)?;
-                return Ok(WarpUiCallBackType::None);
-            }
-
-            b"a" | b"A" => {
-                self.jump_to_previous_flag(ui, LineState::LOCKED)?;
                 return Ok(WarpUiCallBackType::None);
             }
 

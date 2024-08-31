@@ -1,6 +1,7 @@
 use std::{
     io,
     sync::{atomic::AtomicU16, Arc, Mutex, MutexGuard, Once, RwLock, Weak},
+    usize,
 };
 
 use crossterm::{
@@ -232,8 +233,11 @@ impl UiCore {
         Ok(())
     }
 
+    /// 删除指定坐标里的内容
+    /// 可以多行，下标从1开始，最开始的字符会被删除，选中内容的最后一个字符不会被删除
     pub fn delete_range(&mut self, start_pos: (u16, u16), end_pos: (u16, u16)) -> io::Result<()> {
         let content_winsize = *CONTENT_WINSIZE.read().unwrap();
+        let content_line_max = content_winsize.rows;
 
         if start_pos.0 > end_pos.0 || start_pos.1 > end_pos.1 {
             APP_INFO.lock().unwrap().info =
@@ -241,33 +245,71 @@ impl UiCore {
             return Ok(());
         }
 
-        let (start_x, start_y) = start_pos;
-        let (end_x, end_y) = end_pos;
+        let (start_y, mut start_x) = start_pos;
+        let (end_y, mut end_x) = end_pos;
 
         let buffer_line_max = self.buffer.line_count() as u16;
-        let strat_y = start_y.min(buffer_line_max - 1);
-        let end_y = end_y.min(buffer_line_max - 1);
+        let mut start_y = start_y.min(buffer_line_max - 1);
+        let mut end_y = end_y.min(buffer_line_max - 1);
+        let start_y_line_count = self.buffer.get_linesize_absoluted(start_y);
+        let end_y_line_count = self.buffer.get_linesize_absoluted(end_y);
+        start_x = start_x.min(start_y_line_count);
+        end_x = end_x.min(end_y_line_count - 1);
+        // let end_y_line_count = self.buffer.get_linesize_absoluted(end_y);
 
-        if strat_y == end_y {
+        // 以便后面能够得到正确的索引
+        if start_y == 0 {
+            start_y += 1;
+        }
+        if start_x == 0 {
+            start_x += 1;
+        }
+        if end_x == 0 {
+            end_x += 1;
+        }
+        if end_y == 0 {
+            end_y += 1;
+        }
+
+        start_x -= 1;
+        start_y -= 1;
+        end_y -= 1;
+        end_x -= 1;
+
+        if start_y == end_y {
             self.buffer
-                .remove_str(start_x, start_y, (end_x - start_x + 1) as usize);
+                .remove_str_abs(start_x, start_y, (end_x - start_x + 1) as usize);
         } else {
-            self.buffer.remove_str(start_x, start_y, usize::MAX);
-            self.buffer.remove_str(0, end_y, end_x as usize + 1);
-            self.buffer
-                .delete_lines((start_y + 1) as usize, (end_y - 1) as usize);
+            self.buffer.remove_str_abs(start_x, start_y, usize::MAX);
+            self.buffer.remove_str_abs(0, end_y, end_x as usize);
+            if start_y.max(end_y) - start_y.min(end_y) > 1 {
+                self.buffer
+                    .delete_lines((start_y + 1) as usize, (end_y - 1) as usize);
+            }
         }
         if self.buffer.offset() > self.buffer.line_count() {
             self.buffer.set_offset(self.buffer.line_count());
         }
 
-        let y = self.cursor.y();
+        // let y = self.cursor.y();
+        self.goto_line(&format!("{}", start_y + 1))?;
 
-        self.render_content(y - 1, (content_winsize.rows - y) as usize - 1)
-            .unwrap();
+        self.cursor.store_pos();
+        self.cursor.set_prefix_mode(true);
+        self.cursor.restore_pos().unwrap();
+
+        let pos = self.cursor.store_tmp_pos();
+        // self.render_content(y, (content_winsize.rows - y) as usize - 1)
+        //     .unwrap();
+        self.render_content(0, content_line_max as usize).unwrap();
+
+        self.cursor.restore_tmp_pos(pos)?;
+
+        self.cursor.highlight(Some(self.cursor.y() - 1))?;
         Ok(())
     }
 
+    /// 跳转到指定坐标（下标从1开始）
     pub fn goto_line(&mut self, args: &str) -> io::Result<()> {
         if args.is_empty() {
             let mut info = APP_INFO.lock().unwrap();
@@ -296,7 +338,7 @@ impl UiCore {
         let content_line_max = content_winsize.rows;
         let buf_line_max = self.buffer.line_count() as u16;
         let mut y = y.unwrap().min(buf_line_max);
-        let mut x = x.unwrap_or(1).min(self.buffer.get_linesize(y));
+        let mut x = x.unwrap_or(1).min(self.buffer.get_linesize_absoluted(y));
 
         // 以便后面能够得到正确的索引
         if y == 0 {
@@ -323,6 +365,11 @@ impl UiCore {
 
         self.cursor.highlight(Some(lasty)).unwrap();
 
+        Ok(())
+    }
+
+    pub fn insert_str_with_newline(&mut self, _x: u16, _y: u16, _s: &str) -> io::Result<()> {
+        
         Ok(())
     }
 }

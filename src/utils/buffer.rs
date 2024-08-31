@@ -6,6 +6,7 @@ use std::{
         atomic::{AtomicUsize, Ordering},
         RwLock,
     },
+    usize,
 };
 
 use bitflags::bitflags;
@@ -145,6 +146,18 @@ impl EditBuffer {
         Some(ret)
     }
 
+    pub fn get_linesize_absoluted(&self, line: u16) -> u16 {
+        let buf = self.buf.read().unwrap();
+        let line = buf.get(line as usize);
+        if line.is_none() {
+            return 0;
+        }
+
+        let line = line.unwrap();
+
+        line.data.len() as u16
+    }
+
     pub fn get_linesize(&self, line: u16) -> u16 {
         let buf = self.buf.read().unwrap();
         let line = buf.get(self.offset.load(Ordering::SeqCst) + line as usize);
@@ -176,6 +189,23 @@ impl EditBuffer {
         }
         let x = x as usize;
         line.unwrap().data.drain(x..x + n);
+    }
+
+    pub fn remove_str_abs(&self, x: u16, y: u16, n: usize) {
+        let mut buf = self.buf.write().unwrap();
+        let line = buf.get_mut(y as usize);
+        if line.is_none() {
+            return;
+        }
+        let x = x as usize;
+        match n {
+            usize::MAX => {
+                line.unwrap().data.drain(x..);
+            }
+            n => {
+                line.unwrap().data.drain(x..x + n);
+            }
+        }
     }
 
     /// 获取一份对应行的拷贝

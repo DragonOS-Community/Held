@@ -157,6 +157,9 @@ impl UndoTreeNode {
         node.borrow_mut().parent = self.self_pointer.clone();
         node.borrow_mut()
             .set_tree_pointer(&self.tree_pointer.upgrade().unwrap());
+        let self_pointer = self.self_pointer.upgrade().unwrap().clone();
+        node.borrow_mut().last_operation_pointer = Some(self_pointer);
+        self.next_operation_pointer = Some(node.clone());
         self.children.push(node);
     }
 
@@ -166,6 +169,14 @@ impl UndoTreeNode {
             child.borrow_mut().delete();
         }
         if let Some(parent) = self.parent.upgrade() {
+            match parent.borrow().next_operation_pointer {
+                Some(ref next_node)
+                    if Rc::ptr_eq(next_node, &self.self_pointer.upgrade().unwrap()) =>
+                {
+                    parent.borrow_mut().next_operation_pointer = None;
+                }
+                _ => {}
+            }
             parent
                 .borrow_mut()
                 .children
@@ -287,6 +298,8 @@ impl UndoTree {
         let last_node = self.current_node.borrow().last_operation_pointer.clone();
         if let Some(node) = last_node {
             let command = self.current_node.borrow().get_command();
+            node.borrow_mut().next_operation_pointer = Some(self.current_node.clone());
+            self.current_node.borrow_mut().last_operation_pointer = Some(node.clone());
             self.current_node = node;
             Ok(command.process()?)
         } else {

@@ -22,6 +22,7 @@ use crate::utils::input::Input;
 
 use super::{
     mode::mode::{Command, InputMode, Insert, LastLine, ModeType},
+    mode::normal::Normal,
     AppInfo,
 };
 
@@ -29,6 +30,7 @@ lazy_static! {
     static ref COMMAND: Arc<Command> = Arc::new(Command);
     static ref INSERT: Arc<Insert> = Arc::new(Insert);
     static ref LASTLINE: Arc<LastLine> = Arc::new(LastLine::new());
+    static ref NORMAL: Arc<Normal> = Arc::new(Normal::new());
     pub static ref APP_INFO: Mutex<AppInfo> = Mutex::new(AppInfo {
         level: InfoLevel::Info,
         info: String::new()
@@ -378,6 +380,7 @@ impl Ui {
                 ui.cursor.write(':')?;
             }
             ModeType::Insert => *self.mode.write().unwrap() = INSERT.clone(),
+            ModeType::Normal => *self.mode.write().unwrap() = NORMAL.clone(),
         }
 
         Ok(())

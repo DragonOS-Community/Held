@@ -251,6 +251,25 @@ impl EditBuffer {
         }
     }
 
+    #[inline] pub fn get_range(&self, start_pos: (u16, u16), end_pos: (u16, u16)) -> Vec<LineBuffer> {
+        let buf = self.buf.read().unwrap();
+        let mut ret = Vec::new();
+        let start = self.offset.load(Ordering::SeqCst) + start_pos.1 as usize;
+        let end = self.offset.load(Ordering::SeqCst) + end_pos.1 as usize;
+        // 从起始行到结束行
+        for (idx, line) in buf.iter().enumerate().skip(start).take(end - start + 1) {
+            let mut newline = line.clone();
+            if idx == start {
+                newline.data.drain(0..start_pos.0 as usize);
+            }
+            if idx == end {
+                newline.data.drain(end_pos.0 as usize..);
+            }
+            ret.push(newline);
+        }
+        ret
+    }
+
     #[inline]
     pub fn all_buffer(&self) -> Vec<LineBuffer> {
         self.buf.read().unwrap().clone()

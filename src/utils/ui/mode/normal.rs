@@ -156,6 +156,8 @@ impl KeyEventCallback for Normal {
             b"x" => {
                 normal_state.on_x_clicked();
             }
+            b"y" => normal_state.on_y_clicked(),
+            b"p" => normal_state.on_p_clicked(),
             _ => {}
         }
         return normal_state.handle(ui);
@@ -611,6 +613,52 @@ impl NormalState {
         }
         return Ok(WarpUiCallBackType::None);
     }
+
+    fn on_y_clicked(&mut self) {
+        match self.cmdchar {
+            Some('y') => {
+                self.buf_op_arg = Some(BufOpArg::Line);
+            }
+            Some('w') => {
+                self.buf_op_arg = Some(BufOpArg::Word);
+            }
+            None => {
+                self.cmdchar = Some('y');
+            }
+            _ => {}
+        }
+    }
+
+    fn exec_y_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        match self.buf_op_arg {
+            Some(BufOpArg::Line) => {
+                let y = ui.cursor.y();
+                let line = ui.buffer.get_line(y);
+                ui.register.copy(vec![line]);
+                self.reset();
+            }
+            Some(BufOpArg::Word) => {
+                let curr_pos = (ui.cursor.x(), ui.cursor.y());
+                let next_pos = self.locate_next_word(ui, curr_pos.0, curr_pos.1);
+                let text_copy = ui.buffer.get_range(curr_pos, next_pos);
+                ui.register.copy(text_copy);
+                self.reset();
+            }
+            _ => {}
+        }
+        return Ok(WarpUiCallBackType::None);
+    }
+
+    fn on_p_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('p');
+        }
+    }
+
+    fn exec_p_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        self.reset();
+        self.paste(ui).map(|_| WarpUiCallBackType::None)
+    }
 }
 
 pub trait StateMachine {
@@ -640,6 +688,8 @@ impl StateMachine for NormalState {
             'f' => self.exec_f_cmd(ui),
             'F' => self.exec_F_cmd(ui),
             'x' => self.exec_x_cmd(ui),
+            'y' => self.exec_y_cmd(ui),
+            'p' => self.exec_p_cmd(ui),
             _ => return Ok(WarpUiCallBackType::None),
         }
     }

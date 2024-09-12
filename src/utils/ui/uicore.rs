@@ -12,7 +12,8 @@ use lazy_static::lazy_static;
 use crate::{
     config::appconfig::AppSetting,
     utils::{
-        buffer::EditBuffer, cursor::CursorCrtl, reg::Register, style::StyleManager, terminal::TermManager, ui::InfoLevel
+        buffer::EditBuffer, cursor::CursorCrtl, reg::Register, style::StyleManager,
+        terminal::TermManager, ui::InfoLevel,
     },
 };
 

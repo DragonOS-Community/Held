@@ -251,7 +251,8 @@ impl EditBuffer {
         }
     }
 
-    #[inline] pub fn get_range(&self, start_pos: (u16, u16), end_pos: (u16, u16)) -> Vec<LineBuffer> {
+    #[inline]
+    pub fn get_range(&self, start_pos: (u16, u16), end_pos: (u16, u16)) -> Vec<LineBuffer> {
         let buf = self.buf.read().unwrap();
         let mut ret = Vec::new();
         let start = self.offset.load(Ordering::SeqCst) + start_pos.1 as usize;

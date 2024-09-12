@@ -158,9 +158,11 @@ pub trait CommonOp: KeyEventCallback {
         if ui.register.text.is_empty() {
             return Ok(());
         }
-        if ui.register.is_single_line() { // 单行
+        if ui.register.is_single_line() {
+            // 单行
             ui.buffer.insert_line(y.into(), &ui.register.text[0]);
-        } else if ui.register.is_muti_line() { // 多行
+        } else if ui.register.is_muti_line() {
+            // 多行
             for (idx, line) in ui.register.text.iter().enumerate() {
                 for (idy, c) in line.data.iter().enumerate() {
                     ui.buffer.insert_char(*c, x + idy as u16, y + idx as u16);
@@ -168,7 +170,8 @@ pub trait CommonOp: KeyEventCallback {
                 ui.buffer
                     .input_enter(line.data.len() as u16, y + idx as u16);
             }
-        } else { // 单词
+        } else {
+            // 单词
             let line = &ui.register.text[0];
             for (idx, c) in line.data.iter().enumerate() {
                 ui.buffer.insert_char(*c, x + idx as u16, y);

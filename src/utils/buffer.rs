@@ -372,9 +372,9 @@ impl EditBuffer {
 
         if offset + win_rows > max_line {
             // 最底下无数据，则调整
-            let adapt_offset = max_line - win_rows;
+            let adapt_offset = max_line.saturating_sub(win_rows);
 
-            y += offset - adapt_offset;
+            y = y.saturating_add(offset).saturating_sub(adapt_offset);
             offset = adapt_offset;
         }
 

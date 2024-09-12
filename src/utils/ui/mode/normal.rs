@@ -191,16 +191,6 @@ impl KeyEventCallback for NormalState {
     }
 }
 impl NormalState {
-    pub fn reset(&mut self) {
-        self.cmdchar = None;
-        self.count = None;
-        self.count0 = false;
-        self.start_pos = None;
-        self.end_pos = None;
-        self.cmdbuf.clear();
-        self.buf_op_arg = None;
-    }
-
     pub fn exec_0_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
         ui.cursor.move_to_columu(0)?;
         self.reset();
@@ -335,8 +325,7 @@ impl NormalState {
         }
     }
     pub fn exec_i_cmd(&mut self, _ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
-        self.exit()?;
-        return Ok(WarpUiCallBackType::ChangMode(ModeType::Insert));
+        return self.exit(WarpUiCallBackType::ChangMode(ModeType::Insert));
     }
 
     /// 处理输入的非零数字
@@ -656,17 +645,35 @@ impl NormalState {
     }
 
     fn exec_p_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        let count = match self.count {
+            Some(count) => count,
+            None => 1,
+        };
+        for _ in 0..count {
+            self.paste(ui)?;
+        }
         self.reset();
-        self.paste(ui).map(|_| WarpUiCallBackType::None)
+        return Ok(WarpUiCallBackType::None);
     }
 }
 
 pub trait StateMachine {
     fn handle(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType>;
-    fn exit(&mut self) -> io::Result<()>;
+    fn exit(&mut self, callback: WarpUiCallBackType) -> io::Result<WarpUiCallBackType>;
+    fn reset(&mut self);
 }
 
 impl StateMachine for NormalState {
+    fn reset(&mut self) {
+        self.cmdchar = None;
+        self.count = None;
+        self.count0 = false;
+        self.start_pos = None;
+        self.end_pos = None;
+        self.cmdbuf.clear();
+        self.buf_op_arg = None;
+    }
+
     fn handle(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
         if self.cmdchar.is_none() {
             return Ok(WarpUiCallBackType::None);
@@ -694,8 +701,8 @@ impl StateMachine for NormalState {
         }
     }
 
-    fn exit(&mut self) -> io::Result<()> {
+    fn exit(&mut self, callback: WarpUiCallBackType) -> io::Result<WarpUiCallBackType> {
         self.reset();
-        Ok(())
+        Ok(callback)
     }
 }

@@ -9,7 +9,8 @@ use std::sync::{Mutex, MutexGuard};
 
 use super::common::CommonOp;
 use super::mode::ModeType;
-use super::StateCallback;
+use super::state::StateMachine;
+use crate::utils::ui::mode::state::StateCallback;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -154,8 +155,7 @@ impl KeyEventCallback for NormalState {
 impl NormalState {
     pub fn exec_0_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         ui.cursor.move_to_columu(0)?;
-        self.reset();
-        return Ok(StateCallback::None);
+        return Ok(StateCallback::Reset);
     }
 
     pub fn on_h_clicked(&mut self) {
@@ -178,8 +178,7 @@ impl NormalState {
         };
         let new_x = old_x - exec_count as u16;
         ui.cursor.move_to_columu(new_x)?;
-        self.reset();
-        return Ok(StateCallback::None);
+        return Ok(StateCallback::Reset);
     }
 
     pub fn on_j_clicked(&mut self) {
@@ -209,8 +208,7 @@ impl NormalState {
         if ui.buffer.offset() != old_offset {
             ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
         }
-        self.reset();
-        return Ok(StateCallback::None);
+        return Ok(StateCallback::Reset);
     }
     pub fn on_k_clicked(&mut self) {
         if self.cmdchar.is_none() {
@@ -249,8 +247,7 @@ impl NormalState {
         if old_offset != ui.buffer.offset() {
             ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
         }
-        self.reset();
-        return Ok(StateCallback::None);
+        return Ok(StateCallback::Reset);
     }
 
     pub fn on_l_clicked(&mut self) {
@@ -276,8 +273,7 @@ impl NormalState {
         };
         let new_x = old_x + exec_count as u16;
         ui.cursor.move_to_columu(new_x)?;
-        self.reset();
-        return Ok(StateCallback::None);
+        return Ok(StateCallback::Reset);
     }
 
     pub fn on_i_clicked(&mut self) {
@@ -552,12 +548,6 @@ impl NormalState {
         }
         return Ok(StateCallback::Reset);
     }
-}
-
-pub trait StateMachine {
-    fn handle(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType>;
-    fn exit(&mut self, callback: WarpUiCallBackType) -> io::Result<WarpUiCallBackType>;
-    fn reset(&mut self);
 }
 
 impl StateMachine for NormalState {

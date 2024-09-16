@@ -95,9 +95,9 @@ impl KeyEventCallback for Normal {
 
             b"0" => normal_state.on_zero_clicked(),
 
-            b"w" => normal_state.on_w_clicked(),
+            b"w" => normal_state.on_w_clicked(ui),
 
-            b"g" => normal_state.on_g_clicked(ui),
+            b"g" => normal_state.on_g_clicked(),
 
             b"G" => normal_state.on_G_clicked(ui),
 
@@ -358,10 +358,19 @@ impl NormalState {
         }
     }
 
-    pub fn on_w_clicked(&mut self) {
+    pub fn on_w_clicked(&mut self, ui: &mut MutexGuard<UiCore>) {
         if self.cmdchar.is_none() {
             // 按单词移动
             self.cmdchar = Some('w');
+            let count = match self.count {
+                Some(count) => count,
+                None => 1,
+            };
+            let mut pos = (ui.cursor.x(), ui.cursor.y() + ui.buffer.offset() as u16);
+            for _ in 0..count {
+                pos = self.locate_next_word(ui, pos);
+            }
+            self.end_pos = Some(pos);
         } else {
             // 按单词操作，具体由self.cmdchar决定
             self.buf_op_arg = Some(BufOpArg::Word);
@@ -369,36 +378,28 @@ impl NormalState {
     }
 
     pub fn exec_w_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
-        let count = match self.count {
-            Some(count) => count,
-            None => 1,
-        };
-        for _ in 0..count {
-            self.jump_to_next_word(ui)?;
-        }
+        self.end_pos.map(|pos| {
+            self.move_to_line(ui, pos.1).unwrap();
+            ui.cursor.move_to_columu(pos.0).unwrap();
+        });
         return Ok(StateCallback::Reset);
     }
 
-    fn on_g_clicked(&mut self, ui: &mut MutexGuard<UiCore>) {
+    fn on_g_clicked(&mut self) {
         if self.cmdchar.is_none() {
             self.cmdchar = Some('g');
         } else {
-            let first_line_size = ui.buffer.get_linesize(0);
-            self.end_pos = Some((ui.cursor.x().min(first_line_size - 1), 0));
+            self.end_pos = Some((0, 0));
         }
     }
 
     fn exec_g_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
-        let end_pos = self.end_pos;
-        if end_pos.is_none() {
+        let rs = self
+            .end_pos
+            .map(|pos| self.move_to_line(ui, pos.1).unwrap());
+        if let None = rs {
             return Ok(StateCallback::None);
         }
-        let old_y = ui.cursor.y();
-        let (x, y) = end_pos.unwrap();
-        let y = ui.buffer.goto_line(y.into());
-        ui.cursor.move_to(x as u16, y as u16)?;
-        ui.render_content(y, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
-        ui.cursor.highlight(Some(old_y))?;
         return Ok(StateCallback::Reset);
     }
 
@@ -466,7 +467,7 @@ impl NormalState {
             Some(count) => count,
             None => 1,
         };
-        let mut pos = (ui.cursor.x(), ui.cursor.y());
+        let mut pos = (ui.cursor.x(), ui.cursor.y() + ui.buffer.offset() as u16);
         for _ in 0..count {
             pos = self.locate_nextw_ending(ui, pos.0, pos.1);
         }

@@ -120,6 +120,16 @@ impl KeyEventCallback for Normal {
 
             b"x" => normal_state.on_x_clicked(),
 
+            b"o" => normal_state.on_o_clicked(),
+
+            b"O" => normal_state.on_O_clicked(),
+
+            b"a" => normal_state.on_a_clicked(),
+
+            b"A" => normal_state.on_A_clicked(),
+
+            b"I" => normal_state.on_I_clicked(),
+
             _ => {}
         }
         return normal_state.handle(ui);
@@ -182,7 +192,9 @@ impl NormalState {
     }
 
     pub fn on_j_clicked(&mut self) {
-        self.cmdchar = Some('j');
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('j');
+        }
     }
     /// 向下移动数行
     pub fn exec_j_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
@@ -282,6 +294,77 @@ impl NormalState {
         }
     }
     pub fn exec_i_cmd(&mut self, _ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        return Ok(StateCallback::Exit(ModeType::Insert));
+    }
+
+    #[allow(non_snake_case)]
+    pub fn on_I_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('I');
+        }
+    }
+
+    // 切换Insert模式，从行首开始插入字符
+    #[allow(non_snake_case)]
+    pub fn exec_I_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        ui.cursor.move_to_columu(0)?;
+        return Ok(StateCallback::Exit(ModeType::Insert));
+    }
+
+    pub fn on_a_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('a');
+        }
+    }
+
+    // 切换Insert模式，从当前位置的下一个字符开始插入
+    pub fn exec_a_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        self.right(ui)?;
+        return Ok(StateCallback::Exit(ModeType::Insert));
+    }
+
+    #[allow(non_snake_case)]
+    pub fn on_A_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('A');
+        }
+    }
+
+    // 切换Insert模式，从行尾开始插入字符
+    #[allow(non_snake_case)]
+    pub fn exec_A_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        let line_end = ui.buffer.get_linesize(ui.cursor.y()) - 1;
+        ui.cursor.move_to_columu(line_end)?;
+        return Ok(StateCallback::Exit(ModeType::Insert));
+    }
+
+    pub fn on_o_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('o');
+        }
+    }
+
+    // 切换Insert模式，在当前行的下方插入一个新行开始输入文本
+    pub fn exec_o_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        let linesize = ui.buffer.get_linesize(ui.cursor.y());
+        ui.cursor.move_to_columu(linesize - 1)?;
+        ui.buffer.input_enter(ui.cursor.x(), ui.cursor.y());
+        ui.cursor.move_to_nextline(1)?;
+        return Ok(StateCallback::Exit(ModeType::Insert));
+    }
+
+    #[allow(non_snake_case)]
+    pub fn on_O_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('O');
+        }
+    }
+
+    // 切换Insert模式，在当前行的上方插入一个新行开始输入文本
+    #[allow(non_snake_case)]
+    pub fn exec_O_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        ui.cursor.move_to_columu(0)?;
+        ui.buffer.input_enter(ui.cursor.x(), ui.cursor.y());
         return Ok(StateCallback::Exit(ModeType::Insert));
     }
 
@@ -582,6 +665,11 @@ impl StateMachine for NormalState {
             'f' => self.exec_f_cmd(ui),
             'F' => self.exec_F_cmd(ui),
             'x' => self.exec_x_cmd(ui),
+            'o' => self.exec_o_cmd(ui),
+            'O' => self.exec_O_cmd(ui),
+            'a' => self.exec_a_cmd(ui),
+            'A' => self.exec_A_cmd(ui),
+            'I' => self.exec_I_cmd(ui),
             _ => Ok(StateCallback::None),
         };
         return match state_callback {

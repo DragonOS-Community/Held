@@ -19,12 +19,15 @@ impl Register {
     }
 
     pub fn from(lines: Vec<LineBuffer>) -> Register {
-        Register {
-            text: Vec::from(lines),
-        }
+        Register { text: lines }
     }
 
     pub fn copy(&mut self, lines: Vec<LineBuffer>) {
-        self.text = Vec::from(lines);
+        self.text.clear();
+        self.text = lines;
+    }
+
+    pub fn push(&mut self, line: &str) {
+        self.text.push(LineBuffer::new(line.as_bytes().to_vec()));
     }
 }

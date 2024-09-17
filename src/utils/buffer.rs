@@ -272,6 +272,58 @@ impl EditBuffer {
     }
 
     #[inline]
+    pub fn get_range_str(&self, start_pos: (u16, u16), end_pos: (u16, u16)) -> String {
+        let buf = self.buf.read().unwrap();
+        let mut ret = String::new();
+        let start = self.offset.load(Ordering::SeqCst) + start_pos.1 as usize;
+        let end = self.offset.load(Ordering::SeqCst) + end_pos.1 as usize;
+        // 从起始行到结束行
+        for (idx, line) in buf.iter().enumerate().skip(start).take(end - start + 1) {
+            if idx == start {
+                ret.push_str(&String::from_utf8_lossy(&line[start_pos.0 as usize..]).to_string());
+            } else if idx == end {
+                ret.push_str(&String::from_utf8_lossy(&line[..end_pos.0 as usize]).to_string());
+            } else {
+                ret.push_str(&String::from_utf8_lossy(&line).to_string());
+            }
+        }
+        ret
+    }
+
+    #[inline]
+    pub fn get_offset_by_pos(&self, x: u16, y: u16) -> usize {
+        let mut offset = 0;
+        let mut abs_y = self.offset();
+        let buf = self.buf.read().unwrap();
+        for line in buf[abs_y..].iter() {
+            if abs_y == y as usize + self.offset() {
+                offset += x as usize;
+                break;
+            }
+            offset += line.size();
+            abs_y += 1;
+        }
+        offset
+    }
+
+    pub fn get_pos_by_offset(&self, offset: usize) -> (u16, u16) {
+        let mut x = 0;
+        let mut y = 0;
+        let abs_y = self.offset();
+        let buf = self.buf.read().unwrap();
+        let mut offset = offset;
+        for line in buf[abs_y..].iter() {
+            if offset < line.size() {
+                x = offset as u16;
+                break;
+            }
+            offset -= line.size();
+            y += 1;
+        }
+        (x, y)
+    }
+
+    #[inline]
     pub fn all_buffer(&self) -> Vec<LineBuffer> {
         self.buf.read().unwrap().clone()
     }

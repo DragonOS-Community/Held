@@ -30,6 +30,8 @@ use std::io;
 use std::sync::{Mutex, MutexGuard};
 
 use super::common::CommonOp;
+use super::matching::find_pair;
+use super::matching::PAIRING;
 use super::mode::ModeType;
 
 #[derive(Debug)]
@@ -99,65 +101,50 @@ impl KeyEventCallback for Normal {
         let mut normal_state = NORMALSTATE.lock().unwrap();
         normal_state.cmdbuf.extend_from_slice(data);
         match data {
-            b"h" => {
-                normal_state.on_h_clicked();
-            }
-            b"j" => {
-                normal_state.on_j_clicked();
-            }
-            b"k" => {
-                normal_state.on_k_clicked();
-            }
-            b"l" => {
-                normal_state.on_l_clicked();
-            }
-            b"i" => {
-                normal_state.on_i_clicked();
-            }
-            b"d" => {
-                normal_state.on_d_clicked();
-            }
-            [b'1'..=b'9'] => {
-                normal_state.on_nonzero_clicked(data);
-            }
-            b"0" => {
-                normal_state.on_zero_clicked();
-            }
-            b"w" => {
-                normal_state.on_w_clicked();
-            }
-            b"g" => {
-                normal_state.on_g_clicked(ui);
-            }
-            b"G" => {
-                normal_state.on_G_clicked(ui);
-            }
-            b"b" => {
-                normal_state.on_b_clicked(ui);
-            }
+            b"h" => normal_state.on_h_clicked(),
+
+            b"j" => normal_state.on_j_clicked(),
+
+            b"k" => normal_state.on_k_clicked(),
+
+            b"l" => normal_state.on_l_clicked(),
+
+            b"i" => normal_state.on_i_clicked(),
+
+            b"d" => normal_state.on_d_clicked(),
+
+            [b'1'..=b'9'] => normal_state.on_nonzero_clicked(data),
+
+            b"0" => normal_state.on_zero_clicked(),
+
+            b"w" => normal_state.on_w_clicked(),
+
+            b"g" => normal_state.on_g_clicked(ui),
+
+            b"G" => normal_state.on_G_clicked(ui),
+
+            b"b" => normal_state.on_b_clicked(ui),
+
             b":" => {
                 if normal_state.cmdchar.is_none() {
                     ui.cursor.store_pos();
                     return Ok(WarpUiCallBackType::ChangMode(ModeType::LastLine));
                 }
             }
-            b"$" => {
-                normal_state.on_dollar_clicked();
-            }
-            b"e" => {
-                normal_state.on_e_clicked(ui);
-            }
-            b"f" => {
-                normal_state.on_f_clicked();
-            }
-            b"F" => {
-                normal_state.on_F_clicked();
-            }
-            b"x" => {
-                normal_state.on_x_clicked();
-            }
+            b"$" => normal_state.on_dollar_clicked(),
+
+            b"e" => normal_state.on_e_clicked(ui),
+
+            b"f" => normal_state.on_f_clicked(),
+
+            b"F" => normal_state.on_F_clicked(),
+
+            b"x" => normal_state.on_x_clicked(),
+
             b"y" => normal_state.on_y_clicked(),
+
             b"p" => normal_state.on_p_clicked(),
+
             _ => {}
         }
         return normal_state.handle(ui);
@@ -322,6 +309,8 @@ impl NormalState {
     pub fn on_i_clicked(&mut self) {
         if self.cmdchar.is_none() {
             self.cmdchar = Some('i');
+        } else {
+            self.buf_op_arg = Some(BufOpArg::Inside);
         }
     }
     pub fn exec_i_cmd(&mut self, _ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
@@ -546,12 +535,12 @@ impl NormalState {
         if self.cmdbuf.len() < 2 {
             return Ok(WarpUiCallBackType::None);
         }
-        let to_find = self.cmdbuf.last().unwrap().clone() as char;
+        let to_find = self.cmdbuf.last().unwrap();
         let old_x = ui.cursor.x();
         let old_y = ui.cursor.y();
         let line =
             String::from_utf8_lossy(&ui.buffer.get_line(old_y)[old_x as usize..]).to_string();
-        let pos = line.find(to_find);
+        let pos = line.find(*to_find as char);
         if pos.is_none() {
             return Ok(WarpUiCallBackType::None);
         }
@@ -573,12 +562,12 @@ impl NormalState {
         if self.cmdbuf.len() < 2 {
             return Ok(WarpUiCallBackType::None);
         }
-        let to_find = self.cmdbuf.last().unwrap().clone() as char;
+        let to_find = self.cmdbuf.last().unwrap();
         let old_x = ui.cursor.x();
         let old_y = ui.cursor.y();
         let line =
             String::from_utf8_lossy(&ui.buffer.get_line(old_y)[..old_x as usize]).to_string();
-        let pos = line.rfind(to_find);
+        let pos = line.rfind(*to_find as char);
         if pos.is_none() {
             return Ok(WarpUiCallBackType::None);
         }
@@ -608,9 +597,6 @@ impl NormalState {
             Some('y') => {
                 self.buf_op_arg = Some(BufOpArg::Line);
             }
-            Some('w') => {
-                self.buf_op_arg = Some(BufOpArg::Word);
-            }
             None => {
                 self.cmdchar = Some('y');
             }
@@ -632,6 +618,34 @@ impl NormalState {
                 let text_copy = ui.buffer.get_range(curr_pos, next_pos);
                 ui.register.copy(text_copy);
                 self.reset();
+            }
+            Some(BufOpArg::Around) => {
+                let pat = self.cmdbuf.last().unwrap();
+                if PAIRING.contains_key(&(*pat as char)) {
+                    let text = find_pair(ui, *pat);
+                    text.map(|text| {
+                        let sp = text.split('\n').collect::<Vec<&str>>();
+                        ui.register.text.clear();
+                        for line in sp {
+                            ui.register.push(line);
+                        }
+                    });
+                    self.reset();
+                }
+            }
+            Some(BufOpArg::Inside) => {
+                let pat = self.cmdbuf.last().unwrap();
+                if PAIRING.contains_key(&(*pat as char)) {
+                    let text = find_pair(ui, *pat);
+                    text.map(|text| {
+                        let sp = text[1..text.len() - 1].split('\n').collect::<Vec<&str>>();
+                        ui.register.text.clear();
+                        for line in sp {
+                            ui.register.push(line);
+                        }
+                    });
+                    self.reset();
+                }
             }
             _ => {}
         }

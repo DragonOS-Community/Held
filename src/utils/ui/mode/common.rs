@@ -135,4 +135,16 @@ pub trait CommonOp: KeyEventCallback {
         let next_end_pos = ui.buffer.search_nextw_begin(abs_pos.0, abs_pos.1 - offset) as u16;
         return (next_end_pos.min(linesize as u16 - 1), abs_pos.1);
     }
+    fn move_to_nlines_of_screen(&self, ui: &mut MutexGuard<UiCore>, n: usize) -> io::Result<()> {
+        let y = ui.cursor.y() as usize;
+
+        let offset = ui.buffer.offset();
+
+        let new_y = ui.buffer.goto_line(offset + n);
+        ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
+        ui.cursor.move_to_row(new_y)?;
+        ui.cursor.highlight(Some(y as u16))?;
+
+        Ok(())
+    }
 }

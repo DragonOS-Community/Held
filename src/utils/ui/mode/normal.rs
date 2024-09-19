@@ -130,6 +130,10 @@ impl KeyEventCallback for Normal {
 
             b"I" => normal_state.on_I_clicked(),
 
+            b"H" => normal_state.on_H_clicked(),
+
+            b"M" => normal_state.on_M_clicked(),
+
             _ => {}
         }
         return normal_state.handle(ui);
@@ -632,6 +636,32 @@ impl NormalState {
         }
         return Ok(StateCallback::Reset);
     }
+
+    #[allow(non_snake_case)]
+    fn on_H_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('H');
+        }
+    }
+
+    #[allow(non_snake_case)]
+    fn exec_H_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        self.move_to_nlines_of_screen(ui, 0)?;
+        return Ok(StateCallback::Reset);
+    }
+    #[allow(non_snake_case)]
+    fn on_M_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('M');
+        }
+    }
+
+    #[allow(non_snake_case)]
+    fn exec_M_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        let win_size = CONTENT_WINSIZE.read().unwrap().rows as usize;
+        self.move_to_nlines_of_screen(ui, win_size / 2)?;
+        return Ok(StateCallback::Reset);
+    }
 }
 
 impl StateMachine for NormalState {
@@ -670,6 +700,8 @@ impl StateMachine for NormalState {
             'a' => self.exec_a_cmd(ui),
             'A' => self.exec_A_cmd(ui),
             'I' => self.exec_I_cmd(ui),
+            'H' => self.exec_H_cmd(ui),
+            'M' => self.exec_M_cmd(ui),
             _ => Ok(StateCallback::None),
         };
         return match state_callback {

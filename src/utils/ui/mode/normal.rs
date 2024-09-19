@@ -622,13 +622,9 @@ impl NormalState {
             Some(BufOpArg::Around) => {
                 let pat = self.cmdbuf.last().unwrap();
                 if PAIRING.contains_key(&(*pat as char)) {
-                    let text = find_pair(ui, *pat);
-                    text.map(|text| {
-                        let sp = text.split('\n').collect::<Vec<&str>>();
-                        ui.register.text.clear();
-                        for line in sp {
-                            ui.register.push(line);
-                        }
+                    find_pair(ui, *pat).map(|paired_pos| {
+                        let content = ui.buffer.get_range(paired_pos.start, paired_pos.end);
+                        ui.register.copy(content);
                     });
                     self.reset();
                 }
@@ -636,13 +632,11 @@ impl NormalState {
             Some(BufOpArg::Inside) => {
                 let pat = self.cmdbuf.last().unwrap();
                 if PAIRING.contains_key(&(*pat as char)) {
-                    let text = find_pair(ui, *pat);
-                    text.map(|text| {
-                        let sp = text[1..text.len() - 1].split('\n').collect::<Vec<&str>>();
-                        ui.register.text.clear();
-                        for line in sp {
-                            ui.register.push(line);
-                        }
+                    find_pair(ui, *pat).map(|paired_pos| {
+                        let start = (paired_pos.start.0 + 1, paired_pos.start.1);
+                        let end = (paired_pos.end.0 - 1, paired_pos.end.1);
+                        let content = ui.buffer.get_range(start, end);
+                        ui.register.copy(content);
                     });
                     self.reset();
                 }

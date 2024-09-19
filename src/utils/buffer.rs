@@ -257,13 +257,19 @@ impl EditBuffer {
         let mut ret = Vec::new();
         let start = self.offset.load(Ordering::SeqCst) + start_pos.1 as usize;
         let end = self.offset.load(Ordering::SeqCst) + end_pos.1 as usize;
+        if start == end {
+            let line = buf.get(start).unwrap();
+            let start_pos = start_pos.0 as usize;
+            let end_pos = end_pos.0 as usize;
+            ret.push(LineBuffer::new(line[start_pos..end_pos].to_vec()));
+            return ret;
+        }
         // 从起始行到结束行
         for (idx, line) in buf.iter().enumerate().skip(start).take(end - start + 1) {
             let mut newline = line.clone();
             if idx == start {
                 newline.data.drain(0..start_pos.0 as usize);
-            }
-            if idx == end {
+            } else if idx == end {
                 newline.data.drain(end_pos.0 as usize..);
             }
             ret.push(newline);
@@ -277,6 +283,12 @@ impl EditBuffer {
         let mut ret = String::new();
         let start = self.offset.load(Ordering::SeqCst) + start_pos.1 as usize;
         let end = self.offset.load(Ordering::SeqCst) + end_pos.1 as usize;
+        if start == end {
+            let line = buf.get(start).unwrap();
+            let start_pos = start_pos.0 as usize;
+            let end_pos = end_pos.0 as usize;
+            return String::from_utf8_lossy(&line[start_pos..end_pos]).to_string();
+        }
         // 从起始行到结束行
         for (idx, line) in buf.iter().enumerate().skip(start).take(end - start + 1) {
             if idx == start {

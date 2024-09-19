@@ -3,9 +3,12 @@ use regex::Regex;
 use std::{collections::HashMap, sync::MutexGuard};
 
 use crate::utils::ui::uicore::{UiCore, CONTENT_WINSIZE};
-
+/// 匹配括号位置
+pub struct PairedPos {
+    pub start: (u16, u16),
+    pub end: (u16, u16),
+}
 lazy_static! {
-    // value is regex
     pub static ref PAIRING: HashMap<char, Regex> = {
         let mut m = HashMap::new();
         m.insert('(', Regex::new(r"(?s)\(.*?").unwrap());
@@ -55,9 +58,10 @@ fn get_pair(pat: char) -> char {
     }
 }
 /// 获取括号文本
-pub fn find_pair(ui: &mut MutexGuard<UiCore>, pat: u8) -> Option<String> {
+pub fn find_pair(ui: &mut MutexGuard<UiCore>, pat: u8) -> Option<PairedPos> {
     let win_rows = CONTENT_WINSIZE.read().unwrap().rows;
     // 搜索范围为整个屏幕
+    // 把Vec<LineBuffer>转换为String，因为Regex::find_at()需要String，而且二维变一维方便迭代
     let content = ui.buffer.get_range_str((0, 0), (0, win_rows - 1));
     let x = ui.cursor.x();
     let y = ui.cursor.y();
@@ -75,7 +79,7 @@ fn get_nested_pair(
     pat: char,
     pos: usize,
     ui: &mut MutexGuard<UiCore>,
-) -> Option<String> {
+) -> Option<PairedPos> {
     let regex = PAIRING.get(&pat)?;
     let mtch = regex.find_at(text, pos);
 
@@ -88,13 +92,16 @@ fn get_nested_pair(
                 ui.cursor
                     .move_to(new_cursor_start.0, new_cursor_start.1)
                     .ok()?;
-                return Some(m.as_str().to_string());
+                return Some(PairedPos {
+                    start: new_cursor_start,
+                    end: ui.buffer.get_pos_by_offset(end),
+                });
             }
             _ if is_left(pat) => {
                 ui.cursor
                     .move_to(new_cursor_start.0, new_cursor_start.1)
                     .ok()?;
-                return find_matching_right(text, pat, start);
+                return find_matching_right(text, pat, start, ui);
             }
             _ if is_right(pat) => {
                 return find_matching_left(text, pat, end, ui);
@@ -106,10 +113,14 @@ fn get_nested_pair(
     }
 }
 
-fn find_matching_right(text: &str, left_pat: char, start: usize) -> Option<String> {
+fn find_matching_right(
+    text: &str,
+    left_pat: char,
+    start: usize,
+    ui: &mut MutexGuard<UiCore>,
+) -> Option<PairedPos> {
     let right_pat = get_pair(left_pat);
     let mut stack = Vec::new();
-    let end;
 
     for (idx, c) in text[start..].chars().enumerate() {
         if c == left_pat {
@@ -117,8 +128,11 @@ fn find_matching_right(text: &str, left_pat: char, start: usize) -> Option<Strin
         } else if c == right_pat {
             stack.pop();
             if stack.is_empty() {
-                end = idx + start;
-                return Some(text[start..=end].to_string());
+                let end = idx + start;
+                return Some(PairedPos {
+                    start: ui.buffer.get_pos_by_offset(start),
+                    end: ui.buffer.get_pos_by_offset(end + 1),
+                });
             }
         }
     }
@@ -130,7 +144,7 @@ fn find_matching_left(
     right_pat: char,
     end: usize,
     ui: &mut MutexGuard<UiCore>,
-) -> Option<String> {
+) -> Option<PairedPos> {
     let left_pat = get_pair(right_pat);
     let mut stack = Vec::new();
     let chars: Vec<char> = text[..=end].chars().collect();
@@ -143,7 +157,10 @@ fn find_matching_left(
             if stack.is_empty() {
                 let new_cursor = ui.buffer.get_pos_by_offset(idx);
                 ui.cursor.move_to(new_cursor.0, new_cursor.1).ok()?;
-                return Some(text[idx..end].to_string());
+                return Some(PairedPos {
+                    start: ui.buffer.get_pos_by_offset(idx),
+                    end: ui.buffer.get_pos_by_offset(end),
+                });
             }
         }
     }

@@ -1,25 +1,3 @@
-// 为了不影响 Command 模式的功能，参考Vim源码单独实现临时的 Normal 模式用于演示
-
-// Normal模式下的状态机
-
-// 在 input_data() 中处理输入的数据，根据输入的数据进行状态转移，
-// 具体而言，根据输入数据及当前状态来更新状态机的参数，如命令字符，重复次数等
-
-// 在 handle() 中处理状态的转移，根据状态的变化执行相应的操作
-// handle() 是真正作用于 ui 和 buffer 的地方，可以在这里调用 buffer 的方法，更新 ui 的显示
-// 因此，NormalState 提供给 handle() 的参数应该具有足够的一般性，以适应不同的需求
-
-// 在 exit() 中处理状态的退出，清空状态
-
-// 由此为 ndw,ndd 等命令的实现提供了多重字符匹配之外的方案：
-// 状态机的下一个状态仅由输入 + 当前状态决定，避免了对输入的全局匹配
-
-// 另：静态 HashMap 比起 match 性能更好是真的吗？后续是否考虑更换为 HashMap？
-// 另：在现有框架下，增加一个新功能，需要在 input_data() 中增加一个分支，handle() 中增加一个分支
-// 是否有更简便的代码结构？
-
-// 参考：https://github.com/neovim/neovim/blob/master/src/nvim/normal.c#L89
-
 use lazy_static::lazy_static;
 
 use crate::utils::ui::event::KeyEventCallback;
@@ -33,6 +11,8 @@ use super::common::CommonOp;
 use super::matching::find_pair;
 use super::matching::PAIRING;
 use super::mode::ModeType;
+use super::state::StateMachine;
+use crate::utils::ui::mode::state::StateCallback;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -117,9 +97,9 @@ impl KeyEventCallback for Normal {
 
             b"0" => normal_state.on_zero_clicked(),
 
-            b"w" => normal_state.on_w_clicked(),
+            b"w" => normal_state.on_w_clicked(ui),
 
-            b"g" => normal_state.on_g_clicked(ui),
+            b"g" => normal_state.on_g_clicked(),
 
             b"G" => normal_state.on_G_clicked(ui),
 
@@ -144,6 +124,20 @@ impl KeyEventCallback for Normal {
             b"y" => normal_state.on_y_clicked(),
 
             b"p" => normal_state.on_p_clicked(),
+
+            b"o" => normal_state.on_o_clicked(),
+
+            b"O" => normal_state.on_O_clicked(),
+
+            b"a" => normal_state.on_a_clicked(),
+
+            b"A" => normal_state.on_A_clicked(),
+
+            b"I" => normal_state.on_I_clicked(),
+
+            b"H" => normal_state.on_H_clicked(),
+
+            b"M" => normal_state.on_M_clicked(),
 
             _ => {}
         }
@@ -178,10 +172,9 @@ impl KeyEventCallback for NormalState {
     }
 }
 impl NormalState {
-    pub fn exec_0_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    pub fn exec_0_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         ui.cursor.move_to_columu(0)?;
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
     }
 
     pub fn on_h_clicked(&mut self) {
@@ -190,7 +183,7 @@ impl NormalState {
         }
     }
     /// 向左移动数列
-    pub fn exec_h_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    pub fn exec_h_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         let old_x = ui.cursor.x();
         let exec_count = match self.count {
             Some(count) => count.min(old_x as usize),
@@ -204,15 +197,16 @@ impl NormalState {
         };
         let new_x = old_x - exec_count as u16;
         ui.cursor.move_to_columu(new_x)?;
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
     }
 
     pub fn on_j_clicked(&mut self) {
-        self.cmdchar = Some('j');
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('j');
+        }
     }
     /// 向下移动数行
-    pub fn exec_j_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    pub fn exec_j_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         let old_y = ui.cursor.y();
         let old_abs_y = old_y + ui.buffer.offset() as u16;
         // 限制最大移动行数
@@ -235,8 +229,7 @@ impl NormalState {
         if ui.buffer.offset() != old_offset {
             ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
         }
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
     }
     pub fn on_k_clicked(&mut self) {
         if self.cmdchar.is_none() {
@@ -245,7 +238,7 @@ impl NormalState {
     }
 
     /// 向上移动数行
-    pub fn exec_k_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    pub fn exec_k_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         let old_y = ui.cursor.y();
         let old_abs_y = old_y + ui.buffer.offset() as u16;
         // 限制最大移动行数
@@ -275,8 +268,7 @@ impl NormalState {
         if old_offset != ui.buffer.offset() {
             ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
         }
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
     }
 
     pub fn on_l_clicked(&mut self) {
@@ -286,7 +278,7 @@ impl NormalState {
     }
 
     /// 向右移动数列
-    pub fn exec_l_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    pub fn exec_l_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         let old_x = ui.cursor.x();
         let linesize = ui.buffer.get_linesize(ui.cursor.y()) as usize;
         let max_count = linesize - old_x as usize - 1;
@@ -302,8 +294,7 @@ impl NormalState {
         };
         let new_x = old_x + exec_count as u16;
         ui.cursor.move_to_columu(new_x)?;
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
     }
 
     pub fn on_i_clicked(&mut self) {
@@ -313,8 +304,81 @@ impl NormalState {
             self.buf_op_arg = Some(BufOpArg::Inside);
         }
     }
-    pub fn exec_i_cmd(&mut self, _ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
-        return self.exit(WarpUiCallBackType::ChangMode(ModeType::Insert));
+    pub fn exec_i_cmd(&mut self, _ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        return Ok(StateCallback::Exit(ModeType::Insert));
+    }
+
+    #[allow(non_snake_case)]
+    pub fn on_I_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('I');
+        }
+    }
+
+    // 切换Insert模式，从行首开始插入字符
+    #[allow(non_snake_case)]
+    pub fn exec_I_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        ui.cursor.move_to_columu(0)?;
+        return Ok(StateCallback::Exit(ModeType::Insert));
+    }
+
+    pub fn on_a_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('a');
+        } else {
+            self.buf_op_arg = Some(BufOpArg::Around)
+        }
+    }
+
+    // 切换Insert模式，从当前位置的下一个字符开始插入
+    pub fn exec_a_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        self.right(ui)?;
+        return Ok(StateCallback::Exit(ModeType::Insert));
+    }
+
+    #[allow(non_snake_case)]
+    pub fn on_A_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('A');
+        }
+    }
+
+    // 切换Insert模式，从行尾开始插入字符
+    #[allow(non_snake_case)]
+    pub fn exec_A_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        let line_end = ui.buffer.get_linesize(ui.cursor.y()) - 1;
+        ui.cursor.move_to_columu(line_end)?;
+        return Ok(StateCallback::Exit(ModeType::Insert));
+    }
+
+    pub fn on_o_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('o');
+        }
+    }
+
+    // 切换Insert模式，在当前行的下方插入一个新行开始输入文本
+    pub fn exec_o_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        let linesize = ui.buffer.get_linesize(ui.cursor.y());
+        ui.cursor.move_to_columu(linesize - 1)?;
+        ui.buffer.input_enter(ui.cursor.x(), ui.cursor.y());
+        ui.cursor.move_to_nextline(1)?;
+        return Ok(StateCallback::Exit(ModeType::Insert));
+    }
+
+    #[allow(non_snake_case)]
+    pub fn on_O_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('O');
+        }
+    }
+
+    // 切换Insert模式，在当前行的上方插入一个新行开始输入文本
+    #[allow(non_snake_case)]
+    pub fn exec_O_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        ui.cursor.move_to_columu(0)?;
+        ui.buffer.input_enter(ui.cursor.x(), ui.cursor.y());
+        return Ok(StateCallback::Exit(ModeType::Insert));
     }
 
     /// 处理输入的非零数字
@@ -366,7 +430,7 @@ impl NormalState {
         }
     }
 
-    pub fn exec_d_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    pub fn exec_d_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         let count = match self.count {
             Some(count) => count as u16,
             None => 1,
@@ -374,70 +438,65 @@ impl NormalState {
         match self.buf_op_arg {
             Some(BufOpArg::Line) => {
                 // 删除行
-                let result = self
-                    .remove_n_line(ui, count)
-                    .map(|_| WarpUiCallBackType::None);
-                self.reset();
-                return result;
+                self.remove_n_line(ui, count)?;
+                return Ok(StateCallback::Reset);
             }
             Some(BufOpArg::Word) => {
                 // 删除单词
                 for _ in 0..count {
                     self.remove_word(ui)?;
                 }
-                self.reset();
-                return Ok(WarpUiCallBackType::None);
+                return Ok(StateCallback::Reset);
             }
             _ => {
-                return Ok(WarpUiCallBackType::None);
+                return Ok(StateCallback::None);
             }
         }
     }
 
-    pub fn on_w_clicked(&mut self) {
+    pub fn on_w_clicked(&mut self, ui: &mut MutexGuard<UiCore>) {
         if self.cmdchar.is_none() {
             // 按单词移动
             self.cmdchar = Some('w');
+            let count = match self.count {
+                Some(count) => count,
+                None => 1,
+            };
+            let mut pos = (ui.cursor.x(), ui.cursor.y() + ui.buffer.offset() as u16);
+            for _ in 0..count {
+                pos = self.locate_next_word(ui, pos);
+            }
+            self.end_pos = Some(pos);
         } else {
             // 按单词操作，具体由self.cmdchar决定
             self.buf_op_arg = Some(BufOpArg::Word);
         }
     }
 
-    pub fn exec_w_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
-        let count = match self.count {
-            Some(count) => count,
-            None => 1,
-        };
-        for _ in 0..count {
-            self.jump_to_next_word(ui)?;
-        }
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+    pub fn exec_w_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        self.end_pos.map(|pos| {
+            self.move_to_line(ui, pos.1).unwrap();
+            ui.cursor.move_to_columu(pos.0).unwrap();
+        });
+        return Ok(StateCallback::Reset);
     }
 
-    fn on_g_clicked(&mut self, ui: &mut MutexGuard<UiCore>) {
+    fn on_g_clicked(&mut self) {
         if self.cmdchar.is_none() {
             self.cmdchar = Some('g');
         } else {
-            let first_line_size = ui.buffer.get_linesize(0);
-            self.end_pos = Some((ui.cursor.x().min(first_line_size - 1), 0));
+            self.end_pos = Some((0, 0));
         }
     }
 
-    fn exec_g_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
-        let end_pos = self.end_pos;
-        if end_pos.is_none() {
-            return Ok(WarpUiCallBackType::None);
+    fn exec_g_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        let rs = self
+            .end_pos
+            .map(|pos| self.move_to_line(ui, pos.1).unwrap());
+        if let None = rs {
+            return Ok(StateCallback::None);
         }
-        let old_y = ui.cursor.y();
-        let (x, y) = end_pos.unwrap();
-        let y = ui.buffer.goto_line(y.into());
-        ui.cursor.move_to(x as u16, y as u16)?;
-        ui.render_content(y, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
-        ui.cursor.highlight(Some(old_y))?;
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
     }
 
     #[allow(non_snake_case)]
@@ -448,14 +507,13 @@ impl NormalState {
     }
 
     #[allow(non_snake_case)]
-    fn exec_G_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    fn exec_G_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         let lineidx = match self.count {
             Some(count) => count - 1,
             None => ui.buffer.line_count() - 1,
         };
         self.move_to_line(ui, lineidx as u16)?;
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
     }
 
     fn on_b_clicked(&mut self, ui: &mut MutexGuard<UiCore>) {
@@ -469,18 +527,18 @@ impl NormalState {
             None => 1,
         };
         let mut pos = (ui.cursor.x(), ui.cursor.y() + ui.buffer.offset() as u16);
+        self.start_pos = Some(pos);
         for _ in 0..count {
             pos = self.locate_prevw_begin(ui, pos.0, pos.1);
         }
         self.end_pos = Some(pos);
     }
 
-    fn exec_b_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    fn exec_b_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         let end_pos = self.end_pos.unwrap();
         self.move_to_line(ui, end_pos.1)?;
         ui.cursor.move_to_columu(end_pos.0)?;
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
     }
 
     fn on_dollar_clicked(&mut self) {
@@ -489,11 +547,10 @@ impl NormalState {
         }
     }
 
-    fn exec_dollar_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    fn exec_dollar_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         let line_end = ui.buffer.get_linesize(ui.cursor.y()) as u16 - 1;
         ui.cursor.move_to_columu(line_end)?;
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
     }
 
     fn on_e_clicked(&mut self, ui: &mut MutexGuard<UiCore>) {
@@ -506,23 +563,22 @@ impl NormalState {
             Some(count) => count,
             None => 1,
         };
-        let mut pos = (ui.cursor.x(), ui.cursor.y());
+        let mut pos = (ui.cursor.x(), ui.cursor.y() + ui.buffer.offset() as u16);
         for _ in 0..count {
             pos = self.locate_nextw_ending(ui, pos.0, pos.1);
         }
         self.end_pos = Some(pos);
     }
 
-    fn exec_e_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    fn exec_e_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         let end_pos = self.end_pos;
         if end_pos.is_none() {
-            return Ok(WarpUiCallBackType::None);
+            return Ok(StateCallback::None);
         }
         let end_pos = end_pos.unwrap();
         self.move_to_line(ui, end_pos.1)?;
         ui.cursor.move_to_columu(end_pos.0)?;
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
     }
 
     fn on_f_clicked(&mut self) {
@@ -531,9 +587,9 @@ impl NormalState {
         }
     }
 
-    fn exec_f_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    fn exec_f_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         if self.cmdbuf.len() < 2 {
-            return Ok(WarpUiCallBackType::None);
+            return Ok(StateCallback::None);
         }
         let to_find = self.cmdbuf.last().unwrap();
         let old_x = ui.cursor.x();
@@ -542,12 +598,11 @@ impl NormalState {
             String::from_utf8_lossy(&ui.buffer.get_line(old_y)[old_x as usize..]).to_string();
         let pos = line.find(*to_find as char);
         if pos.is_none() {
-            return Ok(WarpUiCallBackType::None);
+            return Ok(StateCallback::None);
         }
         ui.cursor
             .move_to_columu((old_x + pos.unwrap() as u16) as u16)?;
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
     }
 
     #[allow(non_snake_case)]
@@ -558,9 +613,9 @@ impl NormalState {
     }
 
     #[allow(non_snake_case)]
-    fn exec_F_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    fn exec_F_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         if self.cmdbuf.len() < 2 {
-            return Ok(WarpUiCallBackType::None);
+            return Ok(StateCallback::None);
         }
         let to_find = self.cmdbuf.last().unwrap();
         let old_x = ui.cursor.x();
@@ -569,11 +624,10 @@ impl NormalState {
             String::from_utf8_lossy(&ui.buffer.get_line(old_y)[..old_x as usize]).to_string();
         let pos = line.rfind(*to_find as char);
         if pos.is_none() {
-            return Ok(WarpUiCallBackType::None);
+            return Ok(StateCallback::None);
         }
         ui.cursor.move_to_columu(pos.unwrap() as u16)?;
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
     }
 
     fn on_x_clicked(&mut self) {
@@ -582,14 +636,40 @@ impl NormalState {
         }
     }
 
-    fn exec_x_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    fn exec_x_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         let y = ui.cursor.y();
         let x = ui.cursor.x();
         if x < ui.buffer.get_linesize(y) - 1 {
             ui.buffer.remove_char(x, y);
             ui.render_content(y, 1)?;
         }
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
+    }
+
+    #[allow(non_snake_case)]
+    fn on_H_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('H');
+        }
+    }
+
+    #[allow(non_snake_case)]
+    fn exec_H_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        self.move_to_nlines_of_screen(ui, 0)?;
+        return Ok(StateCallback::Reset);
+    }
+    #[allow(non_snake_case)]
+    fn on_M_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('M');
+        }
+    }
+
+    #[allow(non_snake_case)]
+    fn exec_M_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        let win_size = CONTENT_WINSIZE.read().unwrap().rows as usize;
+        self.move_to_nlines_of_screen(ui, win_size / 2)?;
+        return Ok(StateCallback::Reset);
     }
 
     fn on_y_clicked(&mut self) {
@@ -604,20 +684,20 @@ impl NormalState {
         }
     }
 
-    fn exec_y_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    fn exec_y_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         match self.buf_op_arg {
             Some(BufOpArg::Line) => {
                 let y = ui.cursor.y();
                 let line = ui.buffer.get_line(y);
                 ui.register.copy(vec![line]);
-                self.reset();
+                return Ok(StateCallback::Reset);
             }
             Some(BufOpArg::Word) => {
-                let curr_pos = (ui.cursor.x(), ui.cursor.y());
-                let next_pos = self.locate_next_word(ui, curr_pos.0, curr_pos.1);
+                let curr_pos = (ui.cursor.x(), ui.cursor.y() + ui.buffer.offset() as u16);
+                let next_pos = self.locate_next_word(ui, curr_pos);
                 let text_copy = ui.buffer.get_range(curr_pos, next_pos);
                 ui.register.copy(text_copy);
-                self.reset();
+                return Ok(StateCallback::Reset);
             }
             Some(BufOpArg::Around) => {
                 let pat = self.cmdbuf.last().unwrap();
@@ -626,7 +706,7 @@ impl NormalState {
                         let content = ui.buffer.get_range(paired_pos.start, paired_pos.end);
                         ui.register.copy(content);
                     });
-                    self.reset();
+                    return Ok(StateCallback::Reset);
                 }
             }
             Some(BufOpArg::Inside) => {
@@ -638,12 +718,12 @@ impl NormalState {
                         let content = ui.buffer.get_range(start, end);
                         ui.register.copy(content);
                     });
-                    self.reset();
+                    return Ok(StateCallback::Reset);
                 }
             }
             _ => {}
         }
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::None);
     }
 
     fn on_p_clicked(&mut self) {
@@ -652,7 +732,7 @@ impl NormalState {
         }
     }
 
-    fn exec_p_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+    fn exec_p_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
         let count = match self.count {
             Some(count) => count,
             None => 1,
@@ -660,15 +740,8 @@ impl NormalState {
         for _ in 0..count {
             self.paste(ui)?;
         }
-        self.reset();
-        return Ok(WarpUiCallBackType::None);
+        return Ok(StateCallback::Reset);
     }
-}
-
-pub trait StateMachine {
-    fn handle(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType>;
-    fn exit(&mut self, callback: WarpUiCallBackType) -> io::Result<WarpUiCallBackType>;
-    fn reset(&mut self);
 }
 
 impl StateMachine for NormalState {
@@ -681,12 +754,11 @@ impl StateMachine for NormalState {
         self.cmdbuf.clear();
         self.buf_op_arg = None;
     }
-
     fn handle(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
         if self.cmdchar.is_none() {
             return Ok(WarpUiCallBackType::None);
         }
-        match self.cmdchar.unwrap() {
+        let state_callback = match self.cmdchar.unwrap() {
             'h' => self.exec_h_cmd(ui),
             'j' => self.exec_j_cmd(ui),
             'k' => self.exec_k_cmd(ui),
@@ -705,8 +777,24 @@ impl StateMachine for NormalState {
             'x' => self.exec_x_cmd(ui),
             'y' => self.exec_y_cmd(ui),
             'p' => self.exec_p_cmd(ui),
-            _ => return Ok(WarpUiCallBackType::None),
-        }
+            'o' => self.exec_o_cmd(ui),
+            'O' => self.exec_O_cmd(ui),
+            'a' => self.exec_a_cmd(ui),
+            'A' => self.exec_A_cmd(ui),
+            'I' => self.exec_I_cmd(ui),
+            'H' => self.exec_H_cmd(ui),
+            'M' => self.exec_M_cmd(ui),
+            _ => Ok(StateCallback::None),
+        };
+        return match state_callback {
+            Ok(StateCallback::None) => Ok(WarpUiCallBackType::None),
+            Ok(StateCallback::Reset) => {
+                self.reset();
+                Ok(WarpUiCallBackType::None)
+            }
+            Ok(StateCallback::Exit(mode)) => self.exit(WarpUiCallBackType::ChangMode(mode)),
+            Err(e) => Err(e),
+        };
     }
 
     fn exit(&mut self, callback: WarpUiCallBackType) -> io::Result<WarpUiCallBackType> {

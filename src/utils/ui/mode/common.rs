@@ -3,12 +3,13 @@ use std::{io, sync::MutexGuard, usize};
 use crate::utils::{
     terminal::TermManager,
     ui::{
-        event::{KeyEventCallback, WarpUiCallBackType},
+        event::KeyEventCallback,
         uicore::{UiCore, CONTENT_WINSIZE},
     },
 };
 
 pub trait CommonOp: KeyEventCallback {
+    /// 删除一行
     fn remove_line(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
         TermManager::clear_current_line()?;
         TermManager::clear_under_cursor()?;
@@ -33,6 +34,7 @@ pub trait CommonOp: KeyEventCallback {
         Ok(())
     }
 
+    /// 删除数行
     fn remove_n_line(&self, ui: &mut MutexGuard<UiCore>, n: u16) -> io::Result<()> {
         let linecount = ui.buffer.line_count() as u16;
         let y = ui.cursor.y();
@@ -44,6 +46,7 @@ pub trait CommonOp: KeyEventCallback {
         }
         Ok(())
     }
+    /// 删除一个单词
     fn remove_word(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
         let x = ui.cursor.x();
         let y = ui.cursor.y();
@@ -62,30 +65,7 @@ pub trait CommonOp: KeyEventCallback {
         ui.render_content(y, 1)?;
         return Ok(());
     }
-    fn jump_to_next_word(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
-        let x = ui.cursor.x();
-        let y = ui.cursor.y();
-        let pos = ui.buffer.search_nextw_begin(x, y);
-        let linesize = ui.buffer.get_linesize(y);
-        let abs_y = y + ui.buffer.offset() as u16;
-
-        if pos < linesize as usize {
-            // 如果下一个单词在当前行，则移动光标到该单词的起始位置
-            ui.cursor.move_to_columu(pos as u16)?;
-        } else if y as usize + ui.buffer.offset() < ui.buffer.line_count() - 1 {
-            // 如果当前行不是最后一行，则移动到下一行的单词起始位置
-            let next_word_pos = ui.buffer.search_nextw_begin(0, y + 1) as u16;
-            let next_linesize = ui.buffer.get_linesize_abs(abs_y + 1);
-            self.down(ui)?;
-            ui.cursor
-                .move_to_columu(next_word_pos.min(next_linesize - 1))?;
-            ui.cursor.highlight(Some(y))?;
-        } else {
-            // 如果当前行是最后一行，则移动到当前行的末尾
-            ui.cursor.move_to_columu(linesize as u16 - 1)?;
-        }
-        return Ok(WarpUiCallBackType::None);
-    }
+    /// 移动到指定行
     fn move_to_line(&self, ui: &mut MutexGuard<UiCore>, line: u16) -> io::Result<()> {
         let x = ui.cursor.x();
         let y = ui.cursor.y();
@@ -97,6 +77,7 @@ pub trait CommonOp: KeyEventCallback {
         return Ok(());
     }
 
+    /// 定位到上一个单词的首字母，返回绝对坐标
     fn locate_prevw_begin(&self, ui: &mut MutexGuard<UiCore>, x: u16, abs_y: u16) -> (u16, u16) {
         // 如果光标已在行首，则尝试移动到上一行的单词首字母
         if x == 0 {
@@ -113,15 +94,16 @@ pub trait CommonOp: KeyEventCallback {
 
         return (prev_word_pos as u16, abs_y);
     }
-    fn locate_nextw_ending(&self, ui: &mut MutexGuard<UiCore>, x: u16, y: u16) -> (u16, u16) {
-        let linesize = ui.buffer.get_linesize(y) as usize;
 
-        // y的绝对位置
-        let abs_y = ui.buffer.offset() as u16 + y;
+    /// 定位到下一个单词的末尾，返回绝对坐标
+    fn locate_nextw_ending(&self, ui: &mut MutexGuard<UiCore>, x: u16, abs_y: u16) -> (u16, u16) {
+        let linesize = ui.buffer.get_linesize_abs(abs_y) as usize;
+
         // 如果光标已经在当前行的末尾或最后一个字符(x + 2)，则尝试移动到下一行的末尾或单词末尾
         if x as usize + 2 >= linesize {
             if abs_y < ui.buffer.line_count() as u16 - 1 {
-                let next_end_pos = ui.buffer.search_nextw_end(0, y + 1) as u16;
+                let offset = ui.buffer.offset() as u16;
+                let next_end_pos = ui.buffer.search_nextw_end(0, abs_y + 1 - offset) as u16;
                 return (next_end_pos, abs_y + 1);
             } else {
                 // 如果已经是最后一行，则保持光标在当前行的末尾
@@ -130,26 +112,10 @@ pub trait CommonOp: KeyEventCallback {
             }
         }
 
-        let next_end_pos = ui.buffer.search_nextw_end(x, y) as u16;
+        let offset = ui.buffer.offset() as u16;
+        let next_end_pos = ui.buffer.search_nextw_end(x, abs_y - offset) as u16;
         // 如果下一个单词的末尾在当前行，则移动光标到该单词的末尾
         return (next_end_pos.min(linesize as u16 - 1), abs_y);
-    }
-
-    fn locate_next_word(&self, ui: &mut MutexGuard<UiCore>, x: u16, y: u16) -> (u16, u16) {
-        let linesize = ui.buffer.get_linesize(y) as usize;
-        let abs_y = ui.buffer.offset() as u16 + y;
-        let next_word_pos = ui.buffer.search_nextw_begin(x, y);
-
-        if next_word_pos < linesize {
-            return (next_word_pos as u16, abs_y);
-        }
-
-        if abs_y < ui.buffer.line_count() as u16 - 1 {
-            let next_word_pos = ui.buffer.search_nextw_begin(0, y + 1) as u16;
-            return (next_word_pos, abs_y + 1);
-        }
-
-        return (linesize as u16 - 1, abs_y);
     }
 
     fn paste(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
@@ -179,6 +145,35 @@ pub trait CommonOp: KeyEventCallback {
         }
         let rest_line = ui.buffer.line_count() - y as usize - ui.buffer.offset();
         ui.render_content(y, rest_line)?;
+        Ok(())
+    }
+    /// 定位到下一个单词的首字母，返回绝对坐标
+    fn locate_next_word(&self, ui: &mut MutexGuard<UiCore>, abs_pos: (u16, u16)) -> (u16, u16) {
+        let linesize = ui.buffer.get_linesize_abs(abs_pos.1) as usize;
+        if abs_pos.0 as usize + 2 >= linesize {
+            if abs_pos.1 < ui.buffer.line_count() as u16 - 1 {
+                let offset = ui.buffer.offset() as u16;
+                let next_end_pos = ui.buffer.search_nextw_begin(0, abs_pos.1 + 1 - offset) as u16;
+                return (next_end_pos, abs_pos.1 + 1);
+            } else {
+                let x = if linesize > 0 { linesize - 1 } else { 0 };
+                return (x as u16, abs_pos.1);
+            }
+        }
+        let offset = ui.buffer.offset() as u16;
+        let next_end_pos = ui.buffer.search_nextw_begin(abs_pos.0, abs_pos.1 - offset) as u16;
+        return (next_end_pos.min(linesize as u16 - 1), abs_pos.1);
+    }
+    fn move_to_nlines_of_screen(&self, ui: &mut MutexGuard<UiCore>, n: usize) -> io::Result<()> {
+        let y = ui.cursor.y() as usize;
+
+        let offset = ui.buffer.offset();
+
+        let new_y = ui.buffer.goto_line(offset + n);
+        ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)?;
+        ui.cursor.move_to_row(new_y)?;
+        ui.cursor.highlight(Some(y as u16))?;
+
         Ok(())
     }
 }

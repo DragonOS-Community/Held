@@ -10,9 +10,16 @@ use super::{
 pub const TAB_STR: &'static str = "        ";
 
 pub trait KeyEventCallback {
-    fn enter(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType>;
-    fn tab(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType>;
+    fn enter(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType>{
+        // 默认实现
+        Ok(WarpUiCallBackType::ChangMode(ModeType::Normal))
+    }
+    fn tab(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType>{
+        // 默认实现
+        Ok(WarpUiCallBackType::ChangMode(ModeType::Normal))
+    }
     fn backspace(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        // 默认实现
         if ui.cursor.x() == 0 {
             let y = ui.cursor.y();
             let (merged, linelen) = ui.buffer.merge_line(y);
@@ -80,9 +87,10 @@ pub trait KeyEventCallback {
 
         ui.cursor.move_to_columu(x - 1)?;
 
-        Ok(WarpUiCallBackType::None)
+        Ok(WarpUiCallBackType::ChangMode(ModeType::Normal))
     }
     fn up(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        // 默认实现
         if ui.cursor.y() == 0 {
             if ui.buffer.offset() == 0 {
                 // 上面没有数据
@@ -115,9 +123,10 @@ pub trait KeyEventCallback {
         let last_y = ui.cursor.y() + 1;
         ui.cursor.highlight(Some(last_y))?;
 
-        Ok(WarpUiCallBackType::None)
+        Ok(WarpUiCallBackType::ChangMode(ModeType::Normal))
     }
     fn down(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        // 默认实现
         let size = *CONTENT_WINSIZE.read().unwrap();
         let mut linesize = ui.buffer.get_linesize(ui.cursor.y() + 1);
 
@@ -145,17 +154,22 @@ pub trait KeyEventCallback {
         let last_y = ui.cursor.y() - 1;
         ui.cursor.highlight(Some(last_y))?;
 
-        Ok(WarpUiCallBackType::None)
+        Ok(WarpUiCallBackType::ChangMode(ModeType::Normal))
     }
     fn left(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        // 默认实现
         ui.cursor.move_left(1)?;
-        Ok(WarpUiCallBackType::None)
+        Ok(WarpUiCallBackType::ChangMode(ModeType::Normal))
     }
     fn right(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType> {
+        // 默认实现
         ui.cursor.move_right(1)?;
-        Ok(WarpUiCallBackType::None)
+        Ok(WarpUiCallBackType::ChangMode(ModeType::Normal))
     }
-    fn esc(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType>;
+    fn esc(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<WarpUiCallBackType>{
+        // 默认实现
+        Ok(WarpUiCallBackType::ChangMode(ModeType::Normal))
+    }
     fn input_data(
         &self,
         ui: &mut MutexGuard<UiCore>,

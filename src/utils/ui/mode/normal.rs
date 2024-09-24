@@ -8,6 +8,8 @@ use std::io;
 use std::sync::{Mutex, MutexGuard};
 
 use super::common::CommonOp;
+use super::matching::find_pair;
+use super::matching::PAIRING;
 use super::mode::ModeType;
 use super::state::StateMachine;
 use crate::utils::ui::mode::state::StateCallback;
@@ -109,7 +111,6 @@ impl KeyEventCallback for Normal {
                     return Ok(WarpUiCallBackType::ChangMode(ModeType::LastLine));
                 }
             }
-
             b"$" => normal_state.on_dollar_clicked(),
 
             b"e" => normal_state.on_e_clicked(ui),
@@ -119,6 +120,10 @@ impl KeyEventCallback for Normal {
             b"F" => normal_state.on_F_clicked(),
 
             b"x" => normal_state.on_x_clicked(),
+
+            b"y" => normal_state.on_y_clicked(),
+
+            b"p" => normal_state.on_p_clicked(),
 
             b"o" => normal_state.on_o_clicked(),
 
@@ -295,6 +300,8 @@ impl NormalState {
     pub fn on_i_clicked(&mut self) {
         if self.cmdchar.is_none() {
             self.cmdchar = Some('i');
+        } else {
+            self.buf_op_arg = Some(BufOpArg::Inside);
         }
     }
     pub fn exec_i_cmd(&mut self, _ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
@@ -318,6 +325,8 @@ impl NormalState {
     pub fn on_a_clicked(&mut self) {
         if self.cmdchar.is_none() {
             self.cmdchar = Some('a');
+        } else {
+            self.buf_op_arg = Some(BufOpArg::Around)
         }
     }
 
@@ -582,12 +591,12 @@ impl NormalState {
         if self.cmdbuf.len() < 2 {
             return Ok(StateCallback::None);
         }
-        let to_find = self.cmdbuf.last().unwrap().clone() as char;
+        let to_find = self.cmdbuf.last().unwrap();
         let old_x = ui.cursor.x();
         let old_y = ui.cursor.y();
         let line =
             String::from_utf8_lossy(&ui.buffer.get_line(old_y)[old_x as usize..]).to_string();
-        let pos = line.find(to_find);
+        let pos = line.find(*to_find as char);
         if pos.is_none() {
             return Ok(StateCallback::None);
         }
@@ -608,12 +617,12 @@ impl NormalState {
         if self.cmdbuf.len() < 2 {
             return Ok(StateCallback::None);
         }
-        let to_find = self.cmdbuf.last().unwrap().clone() as char;
+        let to_find = self.cmdbuf.last().unwrap();
         let old_x = ui.cursor.x();
         let old_y = ui.cursor.y();
         let line =
             String::from_utf8_lossy(&ui.buffer.get_line(old_y)[..old_x as usize]).to_string();
-        let pos = line.rfind(to_find);
+        let pos = line.rfind(*to_find as char);
         if pos.is_none() {
             return Ok(StateCallback::None);
         }
@@ -662,6 +671,77 @@ impl NormalState {
         self.move_to_nlines_of_screen(ui, win_size / 2)?;
         return Ok(StateCallback::Reset);
     }
+
+    fn on_y_clicked(&mut self) {
+        match self.cmdchar {
+            Some('y') => {
+                self.buf_op_arg = Some(BufOpArg::Line);
+            }
+            None => {
+                self.cmdchar = Some('y');
+            }
+            _ => {}
+        }
+    }
+
+    fn exec_y_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        match self.buf_op_arg {
+            Some(BufOpArg::Line) => {
+                let y = ui.cursor.y();
+                let line = ui.buffer.get_line(y);
+                ui.register.copy(vec![line]);
+                return Ok(StateCallback::Reset);
+            }
+            Some(BufOpArg::Word) => {
+                let curr_pos = (ui.cursor.x(), ui.cursor.y() + ui.buffer.offset() as u16);
+                let next_pos = self.locate_next_word(ui, curr_pos);
+                let text_copy = ui.buffer.get_range(curr_pos, next_pos);
+                ui.register.copy(text_copy);
+                return Ok(StateCallback::Reset);
+            }
+            Some(BufOpArg::Around) => {
+                let pat = self.cmdbuf.last().unwrap();
+                if PAIRING.contains_key(&(*pat as char)) {
+                    find_pair(ui, *pat).map(|paired_pos| {
+                        let content = ui.buffer.get_range(paired_pos.start, paired_pos.end);
+                        ui.register.copy(content);
+                    });
+                    return Ok(StateCallback::Reset);
+                }
+            }
+            Some(BufOpArg::Inside) => {
+                let pat = self.cmdbuf.last().unwrap();
+                if PAIRING.contains_key(&(*pat as char)) {
+                    find_pair(ui, *pat).map(|paired_pos| {
+                        let start = (paired_pos.start.0 + 1, paired_pos.start.1);
+                        let end = (paired_pos.end.0 - 1, paired_pos.end.1);
+                        let content = ui.buffer.get_range(start, end);
+                        ui.register.copy(content);
+                    });
+                    return Ok(StateCallback::Reset);
+                }
+            }
+            _ => {}
+        }
+        return Ok(StateCallback::None);
+    }
+
+    fn on_p_clicked(&mut self) {
+        if self.cmdchar.is_none() {
+            self.cmdchar = Some('p');
+        }
+    }
+
+    fn exec_p_cmd(&mut self, ui: &mut MutexGuard<UiCore>) -> io::Result<StateCallback> {
+        let count = match self.count {
+            Some(count) => count,
+            None => 1,
+        };
+        for _ in 0..count {
+            self.paste(ui)?;
+        }
+        return Ok(StateCallback::Reset);
+    }
 }
 
 impl StateMachine for NormalState {
@@ -695,6 +775,8 @@ impl StateMachine for NormalState {
             'f' => self.exec_f_cmd(ui),
             'F' => self.exec_F_cmd(ui),
             'x' => self.exec_x_cmd(ui),
+            'y' => self.exec_y_cmd(ui),
+            'p' => self.exec_p_cmd(ui),
             'o' => self.exec_o_cmd(ui),
             'O' => self.exec_O_cmd(ui),
             'a' => self.exec_a_cmd(ui),

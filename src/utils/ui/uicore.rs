@@ -12,8 +12,8 @@ use lazy_static::lazy_static;
 use crate::{
     config::appconfig::AppSetting,
     utils::{
-        buffer::EditBuffer, cursor::CursorCrtl, style::StyleManager, terminal::TermManager,
-        ui::InfoLevel,
+        buffer::EditBuffer, cursor::CursorCrtl, reg::Register, style::StyleManager,
+        terminal::TermManager, ui::InfoLevel,
     },
 };
 
@@ -49,6 +49,7 @@ pub struct WinSize {
 pub struct UiCore {
     pub buffer: Arc<EditBuffer>,
     pub cursor: CursorCrtl,
+    pub register: Register,
 
     #[allow(dead_code)]
     setting: AppSetting,
@@ -67,6 +68,7 @@ impl UiCore {
             setting,
             edited: false,
             edited_once: Once::new(),
+            register: Register::new(),
         }
     }
 

@@ -1,4 +1,4 @@
-use std::{io, sync::MutexGuard};
+use std::{io, sync::MutexGuard, usize};
 
 use crate::utils::{
     terminal::TermManager,
@@ -118,6 +118,35 @@ pub trait CommonOp: KeyEventCallback {
         return (next_end_pos.min(linesize as u16 - 1), abs_y);
     }
 
+    fn paste(&self, ui: &mut MutexGuard<UiCore>) -> io::Result<()> {
+        let x = ui.cursor.x();
+        let y = ui.cursor.y();
+        if ui.register.text.is_empty() {
+            return Ok(());
+        }
+        if ui.register.is_single_line() {
+            // 单行
+            ui.buffer.insert_line(y.into(), &ui.register.text[0]);
+        } else if ui.register.is_muti_line() {
+            // 多行
+            for (idx, line) in ui.register.text.iter().enumerate() {
+                for (idy, c) in line.data.iter().enumerate() {
+                    ui.buffer.insert_char(*c, x + idy as u16, y + idx as u16);
+                }
+                ui.buffer
+                    .input_enter(line.data.len() as u16, y + idx as u16);
+            }
+        } else {
+            // 单词
+            let line = &ui.register.text[0];
+            for (idx, c) in line.data.iter().enumerate() {
+                ui.buffer.insert_char(*c, x + idx as u16, y);
+            }
+        }
+        let rest_line = ui.buffer.line_count() - y as usize - ui.buffer.offset();
+        ui.render_content(y, rest_line)?;
+        Ok(())
+    }
     /// 定位到下一个单词的首字母，返回绝对坐标
     fn locate_next_word(&self, ui: &mut MutexGuard<UiCore>, abs_pos: (u16, u16)) -> (u16, u16) {
         let linesize = ui.buffer.get_linesize_abs(abs_pos.1) as usize;

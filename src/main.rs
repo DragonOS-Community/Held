@@ -1,3 +1,5 @@
+#![feature(duration_millis_float)]
+
 use std::{fs::File, io};
 
 use app::Application;
@@ -6,8 +8,15 @@ use config::{appconfig::DeserializeAppOption, cmd::CmdConfig};
 use utils::log_util::Log;
 
 mod app;
+mod buffer;
 mod config;
+mod errors;
+mod modules;
+mod plugin;
+mod util;
 mod utils;
+mod view;
+mod workspace;
 
 #[macro_use]
 extern crate log;

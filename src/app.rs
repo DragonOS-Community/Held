@@ -4,6 +4,7 @@ use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
 use crate::{
     config::appconfig::AppSetting,
+    plugin::system::PluginSystem,
     utils::{file::FileManager, ui::uicore::Ui},
 };
 
@@ -47,6 +48,9 @@ impl Application {
     pub fn run(&mut self) -> io::Result<()> {
         enable_raw_mode()?;
         self.init()?;
+
+        PluginSystem::init_system("./".into());
+        // 主线程
         match self.ui.ui_loop() {
             Ok(store) => {
                 if store {

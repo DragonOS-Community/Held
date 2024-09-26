@@ -444,7 +444,7 @@ impl EditBuffer {
         while left <= right && right < linesize {
             let lchar = line[left] as char;
             let rchar = line[right] as char;
-            if rchar.is_ascii_punctuation() && right != x.into() {
+            if rchar.is_ascii_punctuation() && right != x as usize {
                 break;
             }
             if !(lchar == ' ' || lchar == '\t') {
@@ -476,7 +476,7 @@ impl EditBuffer {
         while left <= right && right < linesize {
             let lchar = line[left] as char;
             let rchar = line[right] as char;
-            if rchar.is_ascii_punctuation() && right != x.into() {
+            if rchar.is_ascii_punctuation() && right != x as usize {
                 break;
             }
             if lchar == ' ' || lchar == '\t' {
@@ -511,7 +511,7 @@ impl EditBuffer {
             let lchar = line[left as usize] as char;
             let rchar = line[right as usize] as char;
 
-            if lchar.is_ascii_punctuation() && left != x.into() {
+            if lchar.is_ascii_punctuation() && left != x as i32 {
                 return Some(left as usize);
             }
             if rchar == ' ' || rchar == '\t' {
@@ -521,7 +521,7 @@ impl EditBuffer {
             }
 
             if lchar == ' ' || lchar == '\t' {
-                if left + 1 == x.into() {
+                if left + 1 == x as i32 {
                     right = left;
                     continue;
                 }
@@ -541,7 +541,7 @@ impl EditBuffer {
             let lchar = line[left as usize] as char;
             let rchar = line[right as usize] as char;
 
-            if lchar.is_ascii_punctuation() && left != x.into() {
+            if lchar.is_ascii_punctuation() && left != x as i32 {
                 return left as usize;
             }
             if rchar == ' ' || rchar == '\t' {
@@ -551,7 +551,7 @@ impl EditBuffer {
             }
 
             if lchar == ' ' || lchar == '\t' {
-                if left + 1 == x.into() {
+                if left + 1 == x as i32 {
                     right = left;
                     continue;
                 }

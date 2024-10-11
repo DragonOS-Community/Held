@@ -196,7 +196,8 @@ impl LastLineCommand {
                 for arg in args {
                     let line = usize::from_str_radix(arg, 10);
                     if line.is_err() {
-                        APP_INTERNAL_INFOMATION.lock().unwrap().info = format!("\"{arg}\" is not a number");
+                        APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                            format!("\"{arg}\" is not a number");
                         return WarpUiCallBackType::None;
                     }
 
@@ -224,7 +225,8 @@ impl LastLineCommand {
                 for arg in args {
                     let line = usize::from_str_radix(arg, 10);
                     if line.is_err() {
-                        APP_INTERNAL_INFOMATION.lock().unwrap().info = format!("\"{arg}\" is not a number");
+                        APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                            format!("\"{arg}\" is not a number");
                         return WarpUiCallBackType::None;
                     }
 
@@ -252,7 +254,8 @@ impl LastLineCommand {
                 for arg in args {
                     let line = usize::from_str_radix(arg, 10);
                     if line.is_err() {
-                        APP_INTERNAL_INFOMATION.lock().unwrap().info = format!("\"{arg}\" is not a number");
+                        APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                            format!("\"{arg}\" is not a number");
                         return WarpUiCallBackType::None;
                     }
 
@@ -273,7 +276,8 @@ impl LastLineCommand {
                 let offset = ui.buffer.offset() + ui.cursor.y() as usize;
                 let count = ui.buffer.delete_lines(offset, offset + 1);
                 if count != 0 {
-                    APP_INTERNAL_INFOMATION.lock().unwrap().info = format!("Successfully deleted {count} row");
+                    APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                        format!("Successfully deleted {count} row");
                 }
                 ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)
                     .unwrap();
@@ -282,7 +286,8 @@ impl LastLineCommand {
             1 => {
                 let line = usize::from_str_radix(args[0], 10);
                 if line.is_err() {
-                    APP_INTERNAL_INFOMATION.lock().unwrap().info = format!("\"{}\" is not a number", args[0]);
+                    APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                        format!("\"{}\" is not a number", args[0]);
                     return WarpUiCallBackType::None;
                 }
 
@@ -291,7 +296,8 @@ impl LastLineCommand {
                 let offset = ui.buffer.offset() + line;
                 let count = ui.buffer.delete_lines(offset, offset + 1);
                 if count != 0 {
-                    APP_INTERNAL_INFOMATION.lock().unwrap().info = format!("Successfully deleted {count} row");
+                    APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                        format!("Successfully deleted {count} row");
                 }
                 ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)
                     .unwrap();
@@ -309,7 +315,8 @@ impl LastLineCommand {
 
                 let count = ui.buffer.delete_lines(start.unwrap() - 1, end.unwrap() - 1);
                 if count != 0 {
-                    APP_INTERNAL_INFOMATION.lock().unwrap().info = format!("Successfully deleted {count} row");
+                    APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                        format!("Successfully deleted {count} row");
                 }
 
                 ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)

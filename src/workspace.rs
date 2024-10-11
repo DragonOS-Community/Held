@@ -1,9 +1,14 @@
 use std::{
-    mem,
-    path::{Path, PathBuf},
+    cell::Ref,
+    env, mem,
+    path::{self, Path, PathBuf},
 };
 
-use crate::errors::*;
+use crate::{
+    errors::*,
+    modules::perferences::{Perferences, PerferencesManager},
+    view::monitor::Monitor,
+};
 use syntect::parsing::SyntaxSet;
 
 use crate::buffer::Buffer;
@@ -18,12 +23,75 @@ pub struct Workspace {
 }
 
 impl Workspace {
-    pub fn new(path: &Path, syntax_definitions: Option<&Path>) -> Result<Workspace> {
+    pub fn create_workspace(
+        monitor: &mut Monitor,
+        perferences: Ref<dyn Perferences>,
+        args: &[String],
+    ) -> Result<Workspace> {
+        let mut path_args = args.iter().skip(1).peekable();
+
+        let initial_dir = env::current_dir()?;
+        // 若第一个参数为dir，则修改工作区
+        if let Some(dir) = path_args.peek() {
+            let path = Path::new(dir);
+            if path.is_dir() {
+                env::set_current_dir(path.canonicalize()?)?;
+            }
+        }
+        let workspace_dir = env::current_dir()?;
+        #[cfg(feature = "dragonos")]
+        let syntax_path: Option<PathBuf> = None;
+        #[cfg(not(feature = "dragonos"))]
+        let syntax_path = PerferencesManager::user_syntax_path().map(Some)?;
+        let mut workspace = Workspace::new(&workspace_dir, syntax_path.as_deref())?;
+
+        if workspace_dir != initial_dir {
+            path_args.next();
+        }
+
+        for path_str in path_args {
+            let path = Path::new(path_str);
+            if path.is_dir() {
+                continue;
+            }
+
+            let syntax_ref = perferences
+                .syntax_definition_name(&path)
+                .and_then(|name| workspace.syntax_set.find_syntax_by_name(&name).cloned());
+
+            let buffer = if path.exists() {
+                let mut buffer = Buffer::from_file(&path)?;
+                buffer.syntax_definition = syntax_ref;
+                buffer
+            } else {
+                let mut buffer = Buffer::new();
+                buffer.syntax_definition = syntax_ref;
+
+                if path.is_absolute() {
+                    buffer.path = Some(path.to_path_buf());
+                } else {
+                    buffer.path = Some(workspace_dir.join(path))
+                }
+                buffer
+            };
+
+            workspace.add_buffer(buffer);
+            monitor.init_buffer(workspace.current_buffer.as_mut().unwrap())?;
+        }
+
+        Ok(workspace)
+    }
+
+    fn new(path: &Path, syntax_definitions: Option<&Path>) -> Result<Workspace> {
         let mut syntax_set = SyntaxSet::load_defaults_newlines();
         if let Some(syntax_definitions) = syntax_definitions {
-            let mut builder = syntax_set.into_builder();
-            builder.add_from_folder(syntax_definitions, true)?;
-            syntax_set = builder.build();
+            if syntax_definitions.is_dir() {
+                if syntax_definitions.read_dir()?.count() > 0 {
+                    let mut builder = syntax_set.into_builder();
+                    builder.add_from_folder(syntax_definitions, true)?;
+                    syntax_set = builder.build();
+                }
+            }
         }
 
         Ok(Workspace {

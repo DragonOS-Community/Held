@@ -1,5 +1,11 @@
 use error_chain::error_chain;
 
+impl Default for Error {
+    fn default() -> Self {
+        Self(ErrorKind::Unreachable, Default::default())
+    }
+}
+
 error_chain! {
     errors {
         EmptyWorkspace {
@@ -17,6 +23,10 @@ error_chain! {
         MissingSyntax {
             description("no syntax definition for the current buffer")
             display("no syntax definition for the current buffer")
+        }
+        Unreachable {
+            description("Unreachable error")
+            display("Unreachable error")
         }
     }
 

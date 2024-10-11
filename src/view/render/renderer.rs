@@ -80,7 +80,7 @@ impl<'a, 'p> Renderer<'a, 'p> {
         &mut self,
         lines: LineIterator<'a>,
         mut lexeme_mapper: Option<&mut dyn LexemeMapper>,
-    ) -> Result<()> {
+    ) -> Result<Option<Position>> {
         self.terminal.set_cursor(None)?;
         self.render_line_number();
 
@@ -148,7 +148,7 @@ impl<'a, 'p> Renderer<'a, 'p> {
             self.try_to_advance_to_next_line(&line_data);
         }
 
-        Ok(())
+        Ok(self.cursor_position)
     }
 
     fn mapper_keyword_style(highlighter: &Highlighter) -> Style {
@@ -228,7 +228,7 @@ impl<'a, 'p> Renderer<'a, 'p> {
             self.render_cell(
                 Position {
                     line: self.screen_position.line,
-                    offset: offset,
+                    offset,
                 },
                 CharStyle::Default,
                 colors,
@@ -393,19 +393,19 @@ mod tests {
     };
 
     use super::Renderer;
-    use syntect::highlighting::ThemeSettings;
 
     #[test]
     fn test_display() {
         let terminal = CrossTerminal::new().unwrap();
-        let mut buffer = Buffer::from_file(Path::new("test.cpp")).unwrap();
+        let mut buffer = Buffer::from_file(Path::new("src/main.rs")).unwrap();
         let mut render_buffer =
             RenderBuffer::new(terminal.width().unwrap(), terminal.height().unwrap());
         let perferences = DummyPerferences;
         let cached_render_state = Rc::new(RefCell::new(HashMap::new()));
 
-        let mut reader =
-            BufReader::new(Cursor::new(include_str!("../../../solarized_dark.tmTheme")));
+        let mut reader = BufReader::new(Cursor::new(include_str!(
+            "../../themes/solarized_dark.tmTheme"
+        )));
         let theme = ThemeSet::load_from_reader(&mut reader).unwrap();
         let syntax_set = SyntaxSet::load_defaults_newlines();
         let definition = buffer

@@ -104,22 +104,58 @@ impl Cursor {
 
     pub fn move_left(&mut self) {
         if self.offset == 0 {
-            return;
-        }
+            if self.line == 0 {
+                return;
+            }
+            let offset = self
+                .data
+                .borrow()
+                .to_string()
+                .lines()
+                .nth(self.line - 1)
+                .unwrap()
+                .graphemes(true)
+                .count();
 
-        let new_position = Position {
-            line: self.line,
-            offset: self.offset - 1,
-        };
-        self.move_to(new_position);
+            let new_position = Position {
+                line: self.line - 1,
+                offset,
+            };
+            self.move_to(new_position);
+        } else {
+            let new_position = Position {
+                line: self.line,
+                offset: self.offset - 1,
+            };
+            self.move_to(new_position);
+        }
     }
 
     pub fn move_right(&mut self) {
-        let new_position = Position {
-            line: self.line,
-            offset: self.offset + 1,
-        };
-        self.move_to(new_position);
+        let max_offset = self
+            .data
+            .borrow()
+            .to_string()
+            .lines()
+            .nth(self.line)
+            .unwrap()
+            .graphemes(true)
+            .count();
+        if self.offset + 1 > max_offset
+            && self.line + 1 <= self.data.borrow().to_string().lines().count()
+        {
+            let new_position = Position {
+                line: self.line + 1,
+                offset: 0,
+            };
+            self.move_to(new_position);
+        } else {
+            let new_position = Position {
+                line: self.line,
+                offset: self.offset + 1,
+            };
+            self.move_to(new_position);
+        }
     }
 
     pub fn move_to_start_of_line(&mut self) {

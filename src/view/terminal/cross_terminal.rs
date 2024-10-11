@@ -1,16 +1,22 @@
-use std::io::{stdout, Write};
+use std::{
+    cell::{RefCell, RefMut},
+    io::{stdout, BufWriter, Write},
+};
 
 use crossterm::{
+    cursor,
     event::Event,
     terminal::{self, disable_raw_mode},
-    ExecutableCommand,
+    ExecutableCommand, QueueableCommand,
 };
 
 use super::{Terminal, MIN_HEIGHT, MIN_WIDTH, TERMINAL_EXECUTE_ERROR};
 use crate::errors::*;
 
 #[derive(Debug)]
-pub struct CrossTerminal;
+pub struct CrossTerminal {
+    ansi_buffer: RefCell<Vec<u8>>,
+}
 
 unsafe impl Send for CrossTerminal {}
 unsafe impl Sync for CrossTerminal {}
@@ -18,7 +24,13 @@ unsafe impl Sync for CrossTerminal {}
 impl CrossTerminal {
     pub fn new() -> Result<CrossTerminal> {
         crossterm::terminal::enable_raw_mode()?;
-        Ok(CrossTerminal)
+        Ok(CrossTerminal {
+            ansi_buffer: RefCell::default(),
+        })
+    }
+
+    fn buffer(&self) -> RefMut<Vec<u8>> {
+        return self.ansi_buffer.borrow_mut();
     }
 
     fn update_style(
@@ -26,24 +38,24 @@ impl CrossTerminal {
         char_style: crate::view::style::CharStyle,
         colors: crate::view::colors::colors::Colors,
     ) -> Result<()> {
-        stdout().execute(crossterm::style::SetAttribute(
+        self.buffer().queue(crossterm::style::SetAttribute(
             crossterm::style::Attribute::Reset,
         ))?;
 
         match char_style {
             crate::view::style::CharStyle::Default => {}
             crate::view::style::CharStyle::Bold => {
-                stdout().execute(crossterm::style::SetAttribute(
+                self.buffer().queue(crossterm::style::SetAttribute(
                     crossterm::style::Attribute::Bold,
                 ))?;
             }
             crate::view::style::CharStyle::Reverse => {
-                stdout().execute(crossterm::style::SetAttribute(
+                self.buffer().queue(crossterm::style::SetAttribute(
                     crossterm::style::Attribute::Reverse,
                 ))?;
             }
             crate::view::style::CharStyle::Italic => {
-                stdout().execute(crossterm::style::SetAttribute(
+                self.buffer().queue(crossterm::style::SetAttribute(
                     crossterm::style::Attribute::Italic,
                 ))?;
             }
@@ -52,11 +64,14 @@ impl CrossTerminal {
         match colors {
             crate::view::colors::colors::Colors::Default => {}
             crate::view::colors::colors::Colors::CustomForeground(color) => {
-                stdout().execute(crossterm::style::SetForegroundColor(color))?;
+                self.buffer()
+                    .queue(crossterm::style::SetForegroundColor(color))?;
             }
             crate::view::colors::colors::Colors::Custom(fg, bg) => {
-                stdout().execute(crossterm::style::SetForegroundColor(fg))?;
-                stdout().execute(crossterm::style::SetBackgroundColor(bg))?;
+                self.buffer()
+                    .queue(crossterm::style::SetForegroundColor(fg))?;
+                self.buffer()
+                    .queue(crossterm::style::SetBackgroundColor(bg))?;
             }
             _ => {
                 unreachable!();
@@ -73,17 +88,16 @@ impl Terminal for CrossTerminal {
     }
 
     fn clear(&self) -> Result<()> {
-        stdout()
-            .execute(terminal::Clear(terminal::ClearType::All))
+        self.buffer()
+            .queue(terminal::Clear(terminal::ClearType::All))
             .chain_err(|| TERMINAL_EXECUTE_ERROR)
             .map(|_| ())
     }
 
     fn present(&self) -> Result<()> {
-        stdout()
-            .flush()
-            .chain_err(|| TERMINAL_EXECUTE_ERROR)
-            .map(|_| ())
+        stdout().write_all(&self.buffer())?;
+        self.buffer().clear();
+        Ok(())
     }
 
     fn width(&self) -> Result<usize> {
@@ -99,18 +113,18 @@ impl Terminal for CrossTerminal {
     fn set_cursor(&self, position: Option<crate::util::position::Position>) -> Result<()> {
         match position {
             Some(position) => {
-                stdout()
-                    .execute(crossterm::cursor::MoveTo(
+                self.buffer()
+                    .queue(crossterm::cursor::MoveTo(
                         position.offset as u16,
                         position.line as u16,
                     ))
                     .unwrap()
-                    .execute(crossterm::cursor::Show)
+                    .queue(crossterm::cursor::Show)
                     .chain_err(|| TERMINAL_EXECUTE_ERROR)?;
             }
             None => {
-                stdout()
-                    .execute(crossterm::cursor::Hide)
+                self.buffer()
+                    .queue(crossterm::cursor::Hide)
                     .chain_err(|| TERMINAL_EXECUTE_ERROR)?;
             }
         }
@@ -119,8 +133,8 @@ impl Terminal for CrossTerminal {
     }
 
     fn set_cursor_type(&self, cursor_type: crossterm::cursor::SetCursorStyle) -> Result<()> {
-        stdout()
-            .execute(cursor_type)
+        self.buffer()
+            .queue(cursor_type)
             .chain_err(|| TERMINAL_EXECUTE_ERROR)
             .map(|_| ())
     }
@@ -134,7 +148,7 @@ impl Terminal for CrossTerminal {
     ) -> Result<()> {
         self.update_style(char_style, colors)?;
         self.set_cursor(Some(*position))?;
-        stdout().write(content.as_bytes())?;
+        self.buffer().queue(crossterm::style::Print(content))?;
         Ok(())
     }
 

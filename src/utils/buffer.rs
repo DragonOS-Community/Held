@@ -13,7 +13,7 @@ use crossterm::style::Color;
 
 use super::{
     style::StyleManager,
-    ui::uicore::{APP_INFO, CONTENT_WINSIZE},
+    ui::uicore::{APP_INTERNAL_INFOMATION, CONTENT_WINSIZE},
 };
 
 #[derive(Debug, Default, Clone)]
@@ -223,7 +223,7 @@ impl EditBuffer {
         if previous_line.flags.contains(LineState::LOCKED)
             || cur_line.flags.contains(LineState::LOCKED)
         {
-            APP_INFO.lock().unwrap().info = "Row is locked".to_string();
+            APP_INTERNAL_INFOMATION.lock().unwrap().info = "Row is locked".to_string();
             return (false, 0);
         }
 

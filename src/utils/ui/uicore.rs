@@ -23,7 +23,7 @@ use crate::utils::input::Input;
 use super::{
     mode::mode::{Command, InputMode, Insert, LastLine, ModeType},
     mode::normal::Normal,
-    AppInfo,
+    AppInternalInfomation,
 };
 
 lazy_static! {
@@ -31,10 +31,11 @@ lazy_static! {
     static ref INSERT: Arc<Insert> = Arc::new(Insert);
     static ref LASTLINE: Arc<LastLine> = Arc::new(LastLine::new());
     static ref NORMAL: Arc<Normal> = Arc::new(Normal::new());
-    pub static ref APP_INFO: Mutex<AppInfo> = Mutex::new(AppInfo {
-        level: InfoLevel::Info,
-        info: String::new()
-    });
+    pub static ref APP_INTERNAL_INFOMATION: Mutex<AppInternalInfomation> =
+        Mutex::new(AppInternalInfomation {
+            level: InfoLevel::Info,
+            info: String::new()
+        });
 }
 
 pub static TAB_SIZE: AtomicU16 = AtomicU16::new(4);
@@ -108,7 +109,7 @@ impl UiCore {
         self.cursor.set_prefix_mode(true);
         self.cursor.move_to(store_x, store_y)?;
 
-        let mut info = APP_INFO.lock().unwrap();
+        let mut info = APP_INTERNAL_INFOMATION.lock().unwrap();
         info.level.set_style()?;
         self.cursor
             .write_with_pos(&info.info, size.cols / 3, cmd_y, false)?;

@@ -4,7 +4,7 @@ use crate::utils::{buffer::LineState, cursor::CursorCrtl, style::StyleManager};
 
 use super::{
     mode::mode::ModeType,
-    uicore::{UiCore, APP_INFO, CONTENT_WINSIZE, DEF_STYLE, UI_CMD_HEIGHT},
+    uicore::{UiCore, APP_INTERNAL_INFOMATION, CONTENT_WINSIZE, DEF_STYLE, UI_CMD_HEIGHT},
 };
 
 pub const TAB_STR: &'static str = "        ";
@@ -62,7 +62,7 @@ pub trait KeyEventCallback {
 
         let line = ui.buffer.get_line(y);
         if line.flags.contains(LineState::LOCKED) {
-            APP_INFO.lock().unwrap().info = "Row is locked".to_string();
+            APP_INTERNAL_INFOMATION.lock().unwrap().info = "Row is locked".to_string();
             return Ok(WarpUiCallBackType::None);
         }
         self.left(ui)?;

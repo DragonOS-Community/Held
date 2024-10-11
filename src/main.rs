@@ -1,13 +1,13 @@
 #![feature(duration_millis_float)]
 
-use std::{fs::File, io};
+use std::{env, fs::File};
 
-use app::Application;
+use application::Application;
 use clap::Parser;
 use config::{appconfig::DeserializeAppOption, cmd::CmdConfig};
 use utils::log_util::Log;
 
-mod app;
+mod application;
 mod buffer;
 mod config;
 mod errors;
@@ -22,7 +22,10 @@ mod workspace;
 extern crate log;
 extern crate simplelog;
 
-fn main() -> io::Result<()> {
+use crate::errors::*;
+
+fn main() -> Result<()> {
+    let args: Vec<String> = env::args().collect();
     let config = CmdConfig::parse();
     Log::init(config.level)?;
 
@@ -35,5 +38,5 @@ fn main() -> io::Result<()> {
         setting = serde_yaml::from_reader::<File, DeserializeAppOption>(file?).unwrap_or_default();
     }
 
-    Application::new(config.file, setting.to_app_setting())?.run()
+    Application::new(config.file, setting.to_app_setting(), &args)?.run()
 }

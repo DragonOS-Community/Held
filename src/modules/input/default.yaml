@@ -1,0 +1,6 @@
+normal:
+  left: cursor::move_left
+  right: cursor::move_right
+  up: cursor::move_up
+  down: cursor::move_down
+  ctrl-c: app::exit

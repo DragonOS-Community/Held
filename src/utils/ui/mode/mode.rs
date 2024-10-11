@@ -10,7 +10,7 @@ use crate::utils::input::KeyEventType;
 
 use crate::utils::terminal::TermManager;
 
-use crate::utils::ui::uicore::{UiCore, APP_INFO, TAB_SIZE};
+use crate::utils::ui::uicore::{UiCore, APP_INTERNAL_INFOMATION, TAB_SIZE};
 use crate::utils::ui::{
     event::KeyEventCallback,
     uicore::{CONTENT_WINSIZE, DEF_STYLE},
@@ -596,7 +596,7 @@ impl KeyEventCallback for Insert {
 
         let line = ui.buffer.get_line(line_idx);
         if line.flags.contains(LineState::LOCKED) {
-            APP_INFO.lock().unwrap().info = "Row is locked".to_string();
+            APP_INTERNAL_INFOMATION.lock().unwrap().info = "Row is locked".to_string();
             return Ok(WarpUiCallBackType::None);
         }
         ui.buffer.input_enter(col, line_idx);
@@ -664,7 +664,7 @@ impl KeyEventCallback for Insert {
 
         let line = ui.buffer.get_line(y);
         if line.flags.contains(LineState::LOCKED) {
-            APP_INFO.lock().unwrap().info = "Row is locked".to_string();
+            APP_INTERNAL_INFOMATION.lock().unwrap().info = "Row is locked".to_string();
             return Ok(WarpUiCallBackType::None);
         }
 

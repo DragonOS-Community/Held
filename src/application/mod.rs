@@ -14,7 +14,8 @@ use smallvec::SmallVec;
 use std::{
     cell::RefCell,
     collections::HashMap,
-    io, mem,
+    io::{self, Read},
+    mem,
     path::{Path, PathBuf},
     rc::Rc,
     sync::Arc,
@@ -167,19 +168,6 @@ impl Application {
     }
 
     fn handle_input(&mut self, event: Event) -> Result<()> {
-        // if let ModeKey::Insert = self.mode_key {
-        //     if let Event::Key(key_event) = event {
-        //         if let KeyCode::Char(c) = key_event.code {
-        //             self.workspace.current_buffer.as_mut().unwrap().insert(c);
-        //             move_right(self)?;
-        //             return Ok(());
-        //         } else if let KeyCode::Enter = key_event.code {
-        //             self.workspace.current_buffer.as_mut().unwrap().insert('\n');
-        //             move_down(self)?;
-        //             return Ok(());
-        //         }
-        //     }
-        // }
         if let Event::Key(key_event) = event {
             self.monitor.last_key = Some(key_event);
         }

@@ -5,6 +5,7 @@ normal:
   down: cursor::move_down
   ctrl-c: app::exit
   i: app::to_insert_mode
+  backspace: cursor::move_left
 insert:
   escape: app::to_normal_mode
   left: cursor::move_left
@@ -12,6 +13,14 @@ insert:
   up: cursor::move_up
   down: cursor::move_down
   ctrl-c: app::exit
+  ctrl-s: workspace::save_file
+  ctrl-z: workspace::undo
+  enter: 
+    - buffer::insert_char
+    - cursor::enter
+  backspace: 
+    - cursor::move_left
+    - buffer::delete_char
   _: 
     - buffer::insert_char
     - cursor::move_right

@@ -4,6 +4,7 @@ use crate::errors::*;
 use crate::{view::monitor::Monitor, workspace::Workspace};
 use error::ErrorRenderer;
 use error_chain::bail;
+use insert::InsertRenderer;
 use linked_hash_map::LinkedHashMap;
 use normal::NormalRenderer;
 use smallvec::SmallVec;
@@ -14,6 +15,7 @@ use super::handler::handle_map;
 use super::Application;
 
 pub mod error;
+mod insert;
 mod normal;
 
 #[derive(Debug)]
@@ -21,6 +23,7 @@ pub enum ModeData {
     Normal,
     Error(Error),
     Exit,
+    Insert,
     // Other(OtherData)
 }
 
@@ -29,12 +32,14 @@ pub enum ModeKey {
     Normal,
     Error,
     Exit,
+    Insert,
 }
 
 impl ModeKey {
     pub fn to_string(&self) -> Option<String> {
         match self {
             ModeKey::Normal => Some("normal".into()),
+            ModeKey::Insert => Some("insert".into()),
             _ => None,
         }
     }
@@ -129,6 +134,7 @@ impl ModeRenderer for ModeRouter {
         match mode {
             ModeData::Normal => NormalRenderer::render(workspace, monitor, mode),
             ModeData::Error(_) => ErrorRenderer::render(workspace, monitor, mode),
+            ModeData::Insert => InsertRenderer::render(workspace, monitor, mode),
             ModeData::Exit => todo!(),
         }
     }

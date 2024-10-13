@@ -4,3 +4,14 @@ normal:
   up: cursor::move_up
   down: cursor::move_down
   ctrl-c: app::exit
+  i: app::to_insert_mode
+insert:
+  escape: app::to_normal_mode
+  left: cursor::move_left
+  right: cursor::move_right
+  up: cursor::move_up
+  down: cursor::move_down
+  ctrl-c: app::exit
+  _: 
+    - buffer::insert_char
+    - cursor::move_right

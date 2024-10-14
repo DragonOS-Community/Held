@@ -14,7 +14,8 @@ use smallvec::SmallVec;
 use std::{
     cell::RefCell,
     collections::HashMap,
-    io, mem,
+    io::{self, Read},
+    mem,
     path::{Path, PathBuf},
     rc::Rc,
     sync::Arc,
@@ -97,6 +98,7 @@ impl Application {
 
     fn init_modes(&mut self) {
         self.mode_history.insert(ModeKey::Normal, ModeData::Normal);
+        self.mode_history.insert(ModeKey::Insert, ModeData::Insert);
         self.mode_history
             .insert(ModeKey::Error, ModeData::Error(Error::default()));
         self.mode_history.insert(ModeKey::Exit, ModeData::Exit);
@@ -166,6 +168,9 @@ impl Application {
     }
 
     fn handle_input(&mut self, event: Event) -> Result<()> {
+        if let Event::Key(key_event) = event {
+            self.monitor.last_key = Some(key_event);
+        }
         let key = InputMapper::event_map_str(event);
         if key.is_none() {
             return Ok(());
@@ -177,6 +182,12 @@ impl Application {
                 if let Some(commands) = mapper.get(&key).cloned() {
                     for command in commands {
                         command(self)?;
+                    }
+                } else {
+                    if let Some(commands) = mapper.get("_").cloned() {
+                        for command in commands {
+                            command(self)?;
+                        }
                     }
                 }
             }

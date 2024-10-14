@@ -1,0 +1,14 @@
+use crate::application::Application;
+use crate::errors::*;
+use crate::util::position::Position;
+
+pub fn backspace(app: &mut Application) -> Result<()> {
+    if let Some(ref mut buffer) = app.workspace.current_buffer {
+        // 在第一行第一列时不执行删除操作
+        if buffer.cursor.position != Position::new(0, 0) {
+            buffer.cursor.move_left();
+            buffer.delete();
+        }
+    }
+    Ok(())
+}

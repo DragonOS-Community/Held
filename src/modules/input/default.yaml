@@ -4,3 +4,22 @@ normal:
   up: cursor::move_up
   down: cursor::move_down
   ctrl-c: app::exit
+  i: app::to_insert_mode
+  backspace: cursor::move_left
+insert:
+  escape: app::to_normal_mode
+  left: cursor::move_left
+  right: cursor::move_right
+  up: cursor::move_up
+  down: cursor::move_down
+  ctrl-c: app::exit
+  ctrl-s: workspace::save_file
+  ctrl-z: workspace::undo
+  enter: 
+    - buffer::new_line
+    - cursor::move_down
+    - cursor::move_to_start_of_line
+  backspace: insert::backspace
+  _: 
+    - buffer::insert_char
+    - cursor::move_right

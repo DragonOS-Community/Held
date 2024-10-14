@@ -52,12 +52,12 @@ impl GapBuffer {
             Some(offset) => offset,
             None => return,
         };
-        println!("{:?}", self.data);
+        // println!("{:?}", self.data);
         self.move_gap(offset);
-        println!("{:?}", self.data);
+        // println!("{:?}", self.data);
         self.write_to_gap(data);
-        println!("{:?}", self.data);
-        println!("start {} length {}", self.gap_start, self.gap_length);
+        // println!("{:?}", self.data);
+        // println!("start {} length {}", self.gap_start, self.gap_length);
     }
 
     pub fn read(&self, range: &Range) -> Option<String> {

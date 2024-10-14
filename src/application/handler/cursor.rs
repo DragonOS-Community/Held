@@ -33,9 +33,8 @@ pub fn move_down(app: &mut Application) -> Result<()> {
     Ok(())
 }
 
-pub fn enter(app: &mut Application) -> Result<()> {
+pub fn move_to_start_of_line(app: &mut Application) -> Result<()> {
     if let Some(ref mut buffer) = app.workspace.current_buffer {
-        buffer.cursor.move_down();
         buffer.cursor.move_to_start_of_line();
     }
     Ok(())

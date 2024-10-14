@@ -16,11 +16,10 @@ insert:
   ctrl-s: workspace::save_file
   ctrl-z: workspace::undo
   enter: 
-    - buffer::insert_char
-    - cursor::enter
-  backspace: 
-    - cursor::move_left
-    - buffer::delete_char
+    - buffer::new_line
+    - cursor::move_down
+    - cursor::move_to_start_of_line
+  backspace: buffer::backspace
   _: 
     - buffer::insert_char
     - cursor::move_right

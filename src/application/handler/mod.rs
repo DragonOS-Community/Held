@@ -5,6 +5,7 @@ use crate::errors::*;
 mod app;
 mod buffer;
 mod cursor;
+mod insert;
 mod monitor;
 mod workspace;
 

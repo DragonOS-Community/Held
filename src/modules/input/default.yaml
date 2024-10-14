@@ -19,7 +19,7 @@ insert:
     - buffer::new_line
     - cursor::move_down
     - cursor::move_to_start_of_line
-  backspace: buffer::backspace
+  backspace: insert::backspace
   _: 
     - buffer::insert_char
     - cursor::move_right

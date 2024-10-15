@@ -19,6 +19,7 @@ const THEME_KET: &str = "theme";
 const LANGUAGE_KEY: &str = "language";
 const LANGUAGE_SYNTAX_KEY: &str = "syntax";
 const LINE_WRAPPING_KEY: &str = "line_wrapping";
+const SOFT_TAB_KEY: &str = "soft_tab";
 
 pub trait Perferences {
     /// 载入
@@ -106,7 +107,7 @@ impl Perferences for DummyPerferences {
     }
 
     fn soft_tab(&self) -> bool {
-        todo!()
+        true
     }
 
     fn theme_path(&self) -> Result<PathBuf> {

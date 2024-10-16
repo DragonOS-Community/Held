@@ -5,7 +5,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 
 use crate::errors::*;
-use crate::modules::perferences::Perferences;
+use crate::modules::perferences::{self, Perferences};
 use crate::util::position::Position;
 use crate::util::range::Range;
 use crate::view::colors::colors::Colors;
@@ -291,11 +291,31 @@ impl<'a, 'p> Renderer<'a, 'p> {
             let (style, color) = self.current_char_style(token_color);
 
             if self.perferences.line_wrapping()
-                && self.screen_position.offset == self.terminal.width().unwrap()
+                && self.screen_position.offset == self.terminal.width().unwrap() - 1
             {
-                todo!()
+                self.render_cell(self.screen_position, style, color, character.to_string());
+                self.buffer_position.offset += 1;
+
+                // 屏幕上换行但是渲染原来的line
+                let prefix_len = self.content_start_of_line;
+                let prefix = " ".repeat(prefix_len);
+                self.screen_position.offset = 0;
+                self.screen_position.line += 1;
+                self.render_cell(
+                    Position {
+                        line: self.screen_position.line,
+                        offset: self.screen_position.offset,
+                    },
+                    style,
+                    Colors::Default,
+                    prefix,
+                );
+                self.screen_position.offset += prefix_len;
             } else if character == "\t" {
-                todo!()
+                let tab_len = self.perferences.tab_width();
+                let width = tab_len - (self.screen_position.offset + 1) % tab_len;
+                let tab_str = " ".repeat(width);
+                self.render_lexeme(tab_str);
             } else {
                 self.render_cell(self.screen_position, style, color, character.to_string());
                 self.screen_position.offset += 1;

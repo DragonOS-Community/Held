@@ -1,17 +1,16 @@
 use std::{
     cell::{RefCell, RefMut},
-    io::{stdout, BufWriter, Write},
+    io::{stdout, Write},
 };
 
 use crossterm::{
-    cursor,
     event::Event,
     terminal::{self, disable_raw_mode},
-    ExecutableCommand, QueueableCommand,
+    QueueableCommand,
 };
 
 use super::{Terminal, MIN_HEIGHT, MIN_WIDTH, TERMINAL_EXECUTE_ERROR};
-use crate::errors::*;
+use crate::{errors::*, util::position::Position};
 
 #[derive(Debug)]
 pub struct CrossTerminal {
@@ -89,9 +88,16 @@ impl Terminal for CrossTerminal {
 
     fn clear(&self) -> Result<()> {
         self.buffer()
+            .queue(crossterm::style::SetAttribute(
+                crossterm::style::Attribute::Reset,
+            ))
+            .chain_err(|| TERMINAL_EXECUTE_ERROR)
+            .map(|_| ())?;
+        self.buffer()
             .queue(terminal::Clear(terminal::ClearType::All))
             .chain_err(|| TERMINAL_EXECUTE_ERROR)
-            .map(|_| ())
+            .map(|_| ())?;
+        Ok(())
     }
 
     fn present(&self) -> Result<()> {
@@ -152,7 +158,14 @@ impl Terminal for CrossTerminal {
         Ok(())
     }
 
-    fn suspend(&self) {}
+    fn suspend(&self) {
+        let _ = self.clear();
+        let _ = self.set_cursor(Some(Position::from((0, 0))));
+        let _ = stdout().write_all(&self.buffer());
+        let _ = stdout().flush();
+
+        self.buffer().clear();
+    }
 }
 
 impl Drop for CrossTerminal {

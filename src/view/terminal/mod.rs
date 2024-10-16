@@ -13,6 +13,7 @@ pub(super) const MIN_HEIGHT: u16 = 10;
 
 pub const TERMINAL_EXECUTE_ERROR: &'static str = "Terminal IO Error";
 
+#[allow(dead_code)]
 pub trait Terminal: Send + Sync + Debug {
     fn listen(&self) -> Result<Event>;
     fn clear(&self) -> Result<()>;

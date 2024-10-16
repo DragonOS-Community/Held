@@ -20,6 +20,7 @@ const LANGUAGE_KEY: &str = "language";
 const LANGUAGE_SYNTAX_KEY: &str = "syntax";
 const LINE_WRAPPING_KEY: &str = "line_wrapping";
 const SOFT_TAB_KEY: &str = "soft_tab";
+const TAB_WIDTH_KEY: &str = "tab_width";
 
 pub trait Perferences {
     /// 载入

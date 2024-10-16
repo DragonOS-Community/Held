@@ -297,8 +297,7 @@ impl<'a, 'p> Renderer<'a, 'p> {
                 self.buffer_position.offset += 1;
 
                 // 屏幕上换行但是渲染原来的line
-                //todo prefix_len换成当前前缀的长度的空格
-                let prefix_len = 5;
+                let prefix_len = self.content_start_of_line;
                 let prefix = " ".repeat(prefix_len);
                 self.screen_position.offset = 0;
                 self.screen_position.line += 1;
@@ -314,7 +313,7 @@ impl<'a, 'p> Renderer<'a, 'p> {
                 self.screen_position.offset += prefix_len;
             } else if character == "\t" {
                 let tab_len = self.perferences.tab_width();
-                let width = tab_len - (self.screen_position.offset + 1) & tab_len;
+                let width = tab_len - (self.screen_position.offset + 1) % tab_len;
                 let tab_str = " ".repeat(width);
                 self.render_lexeme(tab_str);
             } else {

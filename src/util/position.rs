@@ -60,3 +60,10 @@ impl AddAssign<Distance> for Position {
         };
     }
 }
+
+impl From<(usize, usize)> for Position {
+    fn from(tuple: (usize, usize)) -> Self {
+        let (line, offset) = tuple;
+        Position::new(line, offset)
+    }
+}

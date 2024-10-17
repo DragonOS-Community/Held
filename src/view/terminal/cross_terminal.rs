@@ -23,9 +23,12 @@ unsafe impl Sync for CrossTerminal {}
 impl CrossTerminal {
     pub fn new() -> Result<CrossTerminal> {
         crossterm::terminal::enable_raw_mode()?;
-        Ok(CrossTerminal {
+        let terminal = CrossTerminal {
             ansi_buffer: RefCell::default(),
-        })
+        };
+        terminal.clear()?;
+        terminal.present()?;
+        Ok(terminal)
     }
 
     fn buffer(&self) -> RefMut<Vec<u8>> {
@@ -177,7 +180,7 @@ impl Terminal for CrossTerminal {
 
 impl Drop for CrossTerminal {
     fn drop(&mut self) {
-        self.suspend();
+        // self.suspend();
         let _ = disable_raw_mode();
     }
 }

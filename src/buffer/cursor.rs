@@ -138,9 +138,14 @@ impl Cursor {
             .to_string()
             .lines()
             .nth(self.line)
-            .unwrap()
+            .unwrap_or_default()
             .graphemes(true)
             .count();
+
+        if max_offset == 0 {
+            return;
+        }
+
         if self.offset + 1 > max_offset
             && self.line + 1 <= self.data.borrow().to_string().lines().count()
         {

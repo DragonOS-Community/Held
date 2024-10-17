@@ -36,7 +36,11 @@ impl<'a> Presenter<'a> {
                 .get_theme(&theme_name)
                 .ok_or_else(|| format!("Couldn't find \"{}\" theme", theme_name))?;
         }
-        let present_buffer = RenderBuffer::new(monitor.width()?, monitor.height()?);
+        let present_buffer = RenderBuffer::new(
+            monitor.width()?,
+            monitor.height()?,
+            monitor.cached_render_buffer.clone(),
+        );
         Ok(Presenter {
             view: monitor,
             theme,

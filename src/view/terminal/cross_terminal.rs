@@ -42,7 +42,11 @@ impl CrossTerminal {
         ))?;
 
         match char_style {
-            crate::view::style::CharStyle::Default => {}
+            crate::view::style::CharStyle::Default => {
+                self.buffer().queue(crossterm::style::SetAttribute(
+                    crossterm::style::Attribute::Reset,
+                ))?;
+            }
             crate::view::style::CharStyle::Bold => {
                 self.buffer().queue(crossterm::style::SetAttribute(
                     crossterm::style::Attribute::Bold,
@@ -61,7 +65,9 @@ impl CrossTerminal {
         }
 
         match colors {
-            crate::view::colors::colors::Colors::Default => {}
+            crate::view::colors::colors::Colors::Default => {
+                self.buffer().queue(crossterm::style::ResetColor)?;
+            }
             crate::view::colors::colors::Colors::CustomForeground(color) => {
                 self.buffer()
                     .queue(crossterm::style::SetForegroundColor(color))?;
@@ -102,6 +108,7 @@ impl Terminal for CrossTerminal {
 
     fn present(&self) -> Result<()> {
         stdout().write_all(&self.buffer())?;
+        stdout().flush()?;
         self.buffer().clear();
         Ok(())
     }

@@ -5,7 +5,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 
 use crate::errors::*;
-use crate::modules::perferences::{self, Perferences};
+use crate::modules::perferences::Perferences;
 use crate::util::position::Position;
 use crate::util::range::Range;
 use crate::view::colors::colors::Colors;
@@ -396,10 +396,7 @@ mod tests {
         rc::Rc,
     };
 
-    use syntect::{
-        highlighting::{Theme, ThemeSet},
-        parsing::SyntaxSet,
-    };
+    use syntect::{highlighting::ThemeSet, parsing::SyntaxSet};
 
     use crate::{
         buffer::Buffer,
@@ -407,7 +404,7 @@ mod tests {
         util::line_iterator::LineIterator,
         view::{
             colors::map::ColorMap,
-            render::render_buffer::RenderBuffer,
+            render::render_buffer::{CachedRenderBuffer, RenderBuffer},
             terminal::{cross_terminal::CrossTerminal, Terminal},
         },
     };
@@ -418,8 +415,14 @@ mod tests {
     fn test_display() {
         let terminal = CrossTerminal::new().unwrap();
         let mut buffer = Buffer::from_file(Path::new("src/main.rs")).unwrap();
-        let mut render_buffer =
-            RenderBuffer::new(terminal.width().unwrap(), terminal.height().unwrap());
+        let mut render_buffer = RenderBuffer::new(
+            terminal.width().unwrap(),
+            terminal.height().unwrap(),
+            Rc::new(RefCell::new(CachedRenderBuffer::new(
+                terminal.width().unwrap(),
+                terminal.height().unwrap(),
+            ))),
+        );
         let perferences = DummyPerferences;
         let cached_render_state = Rc::new(RefCell::new(HashMap::new()));
 

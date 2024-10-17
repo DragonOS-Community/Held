@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
 use super::{
     presenter::Presenter,
-    render::render_state::RenderState,
+    render::{render_buffer::CachedRenderBuffer, render_state::RenderState},
     terminal::{cross_terminal::CrossTerminal, Terminal},
     theme_loadler::ThemeLoader,
 };
@@ -23,11 +23,13 @@ pub struct Monitor {
     scroll_controllers: HashMap<usize, ScrollController>,
     render_caches: HashMap<usize, Rc<RefCell<HashMap<usize, RenderState>>>>,
     pub last_key: Option<KeyEvent>,
+    pub cached_render_buffer: Rc<RefCell<CachedRenderBuffer>>,
 }
 
 impl Monitor {
     pub fn new(perference: Rc<RefCell<dyn Perferences>>) -> Result<Monitor> {
         let terminal = CrossTerminal::new()?;
+        let cached_render_buffer = CachedRenderBuffer::new(terminal.width()?, terminal.height()?);
         let theme_set = ThemeLoader::new(perference.borrow().theme_path()?).load()?;
         Ok(Monitor {
             terminal: Arc::new(Box::new(terminal)),
@@ -36,6 +38,7 @@ impl Monitor {
             scroll_controllers: HashMap::new(),
             render_caches: HashMap::new(),
             last_key: None,
+            cached_render_buffer: Rc::new(RefCell::new(cached_render_buffer)),
         })
     }
 

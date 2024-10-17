@@ -12,7 +12,7 @@ impl ModeRenderer for InsertRenderer {
     fn render(
         workspace: &mut crate::workspace::Workspace,
         monitor: &mut crate::view::monitor::Monitor,
-        mode: &mut super::ModeData,
+        _mode: &mut super::ModeData,
     ) -> super::Result<()> {
         let mut presenter = monitor.build_presenter()?;
 

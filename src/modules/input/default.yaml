@@ -5,7 +5,21 @@ normal:
   down: cursor::move_down
   ctrl-c: app::exit
   i: app::to_insert_mode
+  a: 
+    - app::to_insert_mode
+    - cursor::move_right
+  shift-A: 
+    - app::to_insert_mode
+    - cursor::move_to_end_of_line
+  shift-I: 
+    - app::to_insert_mode
+    - cursor::move_to_start_of_line
   backspace: cursor::move_left
+  escape: normal::reset
+  $: cursor::move_to_end_of_line
+  _:
+    - normal::transition
+    - normal::execute
 insert:
   escape: app::to_normal_mode
   left: cursor::move_left

@@ -8,6 +8,7 @@ use crossterm::{
     event::{Event, KeyCode, KeyEvent, ModifierKeyCode},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
+use mode::normal::NormalState;
 use mode::{error::ErrorRenderer, ModeData, ModeKey, ModeRenderer, ModeRouter};
 use smallvec::SmallVec;
 
@@ -77,7 +78,7 @@ impl Application {
             workspace,
             monitor,
             perferences,
-            mode: ModeData::Normal,
+            mode: ModeData::Normal(NormalState::new()),
             mode_key: ModeKey::Normal,
             mode_history: HashMap::new(),
             input_map,
@@ -97,7 +98,8 @@ impl Application {
     }
 
     fn init_modes(&mut self) {
-        self.mode_history.insert(ModeKey::Normal, ModeData::Normal);
+        self.mode_history
+            .insert(ModeKey::Normal, ModeData::Normal(NormalState::new()));
         self.mode_history.insert(ModeKey::Insert, ModeData::Insert);
         self.mode_history
             .insert(ModeKey::Error, ModeData::Error(Error::default()));

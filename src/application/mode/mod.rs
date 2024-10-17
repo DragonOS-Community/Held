@@ -2,11 +2,12 @@ use std::collections::HashMap;
 
 use crate::errors::*;
 use crate::{view::monitor::Monitor, workspace::Workspace};
+use crossterm::event::KeyEvent;
 use error::ErrorRenderer;
 use error_chain::bail;
 use insert::InsertRenderer;
 use linked_hash_map::LinkedHashMap;
-use normal::NormalRenderer;
+use normal::{NormalRenderer, NormalState};
 use smallvec::SmallVec;
 use strum::EnumIter;
 use yaml_rust::Yaml;
@@ -16,11 +17,11 @@ use super::Application;
 
 pub mod error;
 mod insert;
-mod normal;
+pub mod normal;
 
 #[derive(Debug)]
 pub enum ModeData {
-    Normal,
+    Normal(NormalState),
     Error(Error),
     Exit,
     Insert,
@@ -132,10 +133,15 @@ pub struct ModeRouter;
 impl ModeRenderer for ModeRouter {
     fn render(workspace: &mut Workspace, monitor: &mut Monitor, mode: &mut ModeData) -> Result<()> {
         match mode {
-            ModeData::Normal => NormalRenderer::render(workspace, monitor, mode),
+            ModeData::Normal(_) => NormalRenderer::render(workspace, monitor, mode),
             ModeData::Error(_) => ErrorRenderer::render(workspace, monitor, mode),
             ModeData::Insert => InsertRenderer::render(workspace, monitor, mode),
             ModeData::Exit => todo!(),
         }
     }
+}
+
+pub trait ModeState {
+    fn transition(&mut self, key: &KeyEvent) -> Result<()>;
+    fn reset(&mut self);
 }

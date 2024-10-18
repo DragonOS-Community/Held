@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use super::{Perferences, APP_INFO, LINE_WRAPPING_KEY, THEME_KET, THEME_PATH};
+use super::{
+    Perferences, APP_INFO, LINE_WRAPPING_KEY, SOFT_TAB_KEY, TAB_WIDTH_KEY, THEME_KET, THEME_PATH,
+};
 use crate::{
     errors::*,
     modules::perferences::{LANGUAGE_KEY, LANGUAGE_SYNTAX_KEY, SYNTAX_PATH},
@@ -28,11 +30,11 @@ impl Perferences for YamlPerferences {
     }
 
     fn tab_width(&self) -> usize {
-        todo!()
+        self.data[TAB_WIDTH_KEY].as_i64().unwrap_or(4) as usize
     }
 
     fn soft_tab(&self) -> bool {
-        todo!()
+        self.data[SOFT_TAB_KEY].as_bool().unwrap_or(true)
     }
 
     fn theme_name(&self) -> Option<String> {

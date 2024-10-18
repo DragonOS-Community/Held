@@ -1,17 +1,16 @@
 use std::{
     cell::{RefCell, RefMut},
-    io::{stdout, BufWriter, Write},
+    io::{stdout, Write},
 };
 
 use crossterm::{
-    cursor,
     event::Event,
     terminal::{self, disable_raw_mode},
-    ExecutableCommand, QueueableCommand,
+    QueueableCommand,
 };
 
 use super::{Terminal, MIN_HEIGHT, MIN_WIDTH, TERMINAL_EXECUTE_ERROR};
-use crate::errors::*;
+use crate::{errors::*, util::position::Position};
 
 #[derive(Debug)]
 pub struct CrossTerminal {
@@ -24,9 +23,12 @@ unsafe impl Sync for CrossTerminal {}
 impl CrossTerminal {
     pub fn new() -> Result<CrossTerminal> {
         crossterm::terminal::enable_raw_mode()?;
-        Ok(CrossTerminal {
+        let terminal = CrossTerminal {
             ansi_buffer: RefCell::default(),
-        })
+        };
+        terminal.clear()?;
+        terminal.present()?;
+        Ok(terminal)
     }
 
     fn buffer(&self) -> RefMut<Vec<u8>> {
@@ -43,7 +45,11 @@ impl CrossTerminal {
         ))?;
 
         match char_style {
-            crate::view::style::CharStyle::Default => {}
+            crate::view::style::CharStyle::Default => {
+                self.buffer().queue(crossterm::style::SetAttribute(
+                    crossterm::style::Attribute::Reset,
+                ))?;
+            }
             crate::view::style::CharStyle::Bold => {
                 self.buffer().queue(crossterm::style::SetAttribute(
                     crossterm::style::Attribute::Bold,
@@ -62,7 +68,9 @@ impl CrossTerminal {
         }
 
         match colors {
-            crate::view::colors::colors::Colors::Default => {}
+            crate::view::colors::colors::Colors::Default => {
+                self.buffer().queue(crossterm::style::ResetColor)?;
+            }
             crate::view::colors::colors::Colors::CustomForeground(color) => {
                 self.buffer()
                     .queue(crossterm::style::SetForegroundColor(color))?;
@@ -89,13 +97,21 @@ impl Terminal for CrossTerminal {
 
     fn clear(&self) -> Result<()> {
         self.buffer()
+            .queue(crossterm::style::SetAttribute(
+                crossterm::style::Attribute::Reset,
+            ))
+            .chain_err(|| TERMINAL_EXECUTE_ERROR)
+            .map(|_| ())?;
+        self.buffer()
             .queue(terminal::Clear(terminal::ClearType::All))
             .chain_err(|| TERMINAL_EXECUTE_ERROR)
-            .map(|_| ())
+            .map(|_| ())?;
+        Ok(())
     }
 
     fn present(&self) -> Result<()> {
         stdout().write_all(&self.buffer())?;
+        stdout().flush()?;
         self.buffer().clear();
         Ok(())
     }
@@ -152,12 +168,19 @@ impl Terminal for CrossTerminal {
         Ok(())
     }
 
-    fn suspend(&self) {}
+    fn suspend(&self) {
+        let _ = self.clear();
+        let _ = self.set_cursor(Some(Position::from((0, 0))));
+        let _ = stdout().write_all(&self.buffer());
+        let _ = stdout().flush();
+
+        self.buffer().clear();
+    }
 }
 
 impl Drop for CrossTerminal {
     fn drop(&mut self) {
-        self.suspend();
+        // self.suspend();
         let _ = disable_raw_mode();
     }
 }

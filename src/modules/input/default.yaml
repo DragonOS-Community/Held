@@ -21,6 +21,7 @@ insert:
     - cursor::move_down
     - cursor::move_to_start_of_line
   backspace: insert::backspace
+  tab: buffer::insert_tab
   _: 
     - buffer::insert_char
 command:

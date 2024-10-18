@@ -292,11 +292,31 @@ impl<'a, 'p> Renderer<'a, 'p> {
             let (style, color) = self.current_char_style(token_color);
 
             if self.perferences.line_wrapping()
-                && self.screen_position.offset == self.terminal.width().unwrap()
+                && self.screen_position.offset == self.terminal.width().unwrap() - 1
             {
-                todo!()
+                self.render_cell(self.screen_position, style, color, character.to_string());
+                self.buffer_position.offset += 1;
+
+                // 屏幕上换行但是渲染原来的line
+                let prefix_len = self.content_start_of_line;
+                let prefix = " ".repeat(prefix_len);
+                self.screen_position.offset = 0;
+                self.screen_position.line += 1;
+                self.render_cell(
+                    Position {
+                        line: self.screen_position.line,
+                        offset: self.screen_position.offset,
+                    },
+                    style,
+                    Colors::Default,
+                    prefix,
+                );
+                self.screen_position.offset += prefix_len;
             } else if character == "\t" {
-                todo!()
+                let tab_len = self.perferences.tab_width();
+                let width = tab_len - (self.screen_position.offset + 1) % tab_len;
+                let tab_str = " ".repeat(width);
+                self.render_lexeme(tab_str);
             } else {
                 self.render_cell(self.screen_position, style, color, character.to_string());
                 self.screen_position.offset += 1;
@@ -377,10 +397,7 @@ mod tests {
         rc::Rc,
     };
 
-    use syntect::{
-        highlighting::{Theme, ThemeSet},
-        parsing::SyntaxSet,
-    };
+    use syntect::{highlighting::ThemeSet, parsing::SyntaxSet};
 
     use crate::{
         buffer::Buffer,
@@ -388,7 +405,7 @@ mod tests {
         util::line_iterator::LineIterator,
         view::{
             colors::map::ColorMap,
-            render::render_buffer::RenderBuffer,
+            render::render_buffer::{CachedRenderBuffer, RenderBuffer},
             terminal::{cross_terminal::CrossTerminal, Terminal},
         },
     };
@@ -399,8 +416,14 @@ mod tests {
     fn test_display() {
         let terminal = CrossTerminal::new().unwrap();
         let mut buffer = Buffer::from_file(Path::new("src/main.rs")).unwrap();
-        let mut render_buffer =
-            RenderBuffer::new(terminal.width().unwrap(), terminal.height().unwrap());
+        let mut render_buffer = RenderBuffer::new(
+            terminal.width().unwrap(),
+            terminal.height().unwrap(),
+            Rc::new(RefCell::new(CachedRenderBuffer::new(
+                terminal.width().unwrap(),
+                terminal.height().unwrap(),
+            ))),
+        );
         let perferences = DummyPerferences;
         let cached_render_state = Rc::new(RefCell::new(HashMap::new()));
 

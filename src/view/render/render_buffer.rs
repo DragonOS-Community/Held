@@ -24,18 +24,66 @@ impl<'c> Default for Cell<'c> {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct CachedCell {
+    pub content: String,
+    pub colors: Colors,
+    pub style: CharStyle,
+}
+
+#[derive(Debug)]
+pub struct CachedRenderBuffer {
+    pub cells: Vec<CachedCell>,
+}
+
+impl CachedRenderBuffer {
+    pub fn new(width: usize, height: usize) -> CachedRenderBuffer {
+        CachedRenderBuffer {
+            cells: vec![CachedCell::default(); width * height],
+        }
+    }
+
+    // 返回对应index是否与cell相等
+    pub fn compare_and_update(&mut self, cell: &Cell, index: usize) -> bool {
+        if index < self.cells.len() {
+            let cache = &mut self.cells[index];
+            let cell_content = String::from_iter(cell.content.chars());
+            let equal = cache.colors == cell.colors
+                && cache.style == cell.style
+                && cache.content == cell_content;
+
+            if !equal {
+                cache.colors = cell.colors;
+                cache.style = cell.style;
+                cache.content = cell_content;
+            }
+
+            return equal;
+        } else {
+            return false;
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct RenderBuffer<'a> {
     width: usize,
     height: usize,
     cells: Vec<Cell<'a>>,
+    cached: Rc<RefCell<CachedRenderBuffer>>,
 }
 
 impl<'a> RenderBuffer<'a> {
-    pub fn new(width: usize, height: usize) -> RenderBuffer<'a> {
+    pub fn new(
+        width: usize,
+        height: usize,
+        cached: Rc<RefCell<CachedRenderBuffer>>,
+    ) -> RenderBuffer<'a> {
         RenderBuffer {
             width,
             height,
             cells: vec![Cell::default(); width * height],
+            cached,
         }
     }
 
@@ -60,6 +108,7 @@ pub struct RenderBufferIter<'a> {
     index: usize,
     width: usize,
     cells: &'a Vec<Cell<'a>>,
+    cached: Rc<RefCell<CachedRenderBuffer>>,
 }
 
 impl<'a> RenderBufferIter<'a> {
@@ -68,6 +117,7 @@ impl<'a> RenderBufferIter<'a> {
             index: 0,
             width: render_buffer.width,
             cells: &render_buffer.cells,
+            cached: render_buffer.cached.clone(),
         }
     }
 }
@@ -76,17 +126,20 @@ impl<'a> Iterator for RenderBufferIter<'a> {
     type Item = (Position, &'a Cell<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.cells.len() {
+        while self.index < self.cells.len() {
             let position = Position {
                 line: self.index / self.width,
                 offset: self.index % self.width,
             };
+
+            let index = self.index;
             let cell = &self.cells[self.index];
             self.index += cell.content.graphemes(true).count().max(1);
 
-            Some((position, cell))
-        } else {
-            None
+            if !self.cached.borrow_mut().compare_and_update(cell, index) {
+                return Some((position, cell));
+            }
         }
+        None
     }
 }

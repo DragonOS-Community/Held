@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::errors::*;
 use crate::{view::monitor::Monitor, workspace::Workspace};
+use command::{CommandData, CommandRenderer};
 use error::ErrorRenderer;
 use error_chain::bail;
 use insert::InsertRenderer;
@@ -14,6 +15,7 @@ use yaml_rust::Yaml;
 use super::handler::handle_map;
 use super::Application;
 
+pub mod command;
 pub mod error;
 mod insert;
 mod normal;
@@ -24,6 +26,7 @@ pub enum ModeData {
     Error(Error),
     Exit,
     Insert,
+    Command(CommandData),
     // Other(OtherData)
 }
 
@@ -33,6 +36,7 @@ pub enum ModeKey {
     Error,
     Exit,
     Insert,
+    Command,
 }
 
 impl ModeKey {
@@ -40,6 +44,7 @@ impl ModeKey {
         match self {
             ModeKey::Normal => Some("normal".into()),
             ModeKey::Insert => Some("insert".into()),
+            ModeKey::Command => Some("command".into()),
             _ => None,
         }
     }
@@ -135,6 +140,7 @@ impl ModeRenderer for ModeRouter {
             ModeData::Normal => NormalRenderer::render(workspace, monitor, mode),
             ModeData::Error(_) => ErrorRenderer::render(workspace, monitor, mode),
             ModeData::Insert => InsertRenderer::render(workspace, monitor, mode),
+            ModeData::Command(_) => CommandRenderer::render(workspace, monitor, mode),
             ModeData::Exit => todo!(),
         }
     }

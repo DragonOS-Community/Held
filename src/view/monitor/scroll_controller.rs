@@ -20,7 +20,8 @@ impl ScrollController {
 
     // 若将buffer指针指向的行滚动到显示区域顶部
     pub fn scroll_into_monitor(&mut self, buffer: &Buffer) -> Result<()> {
-        let terminal_height = self.terminal.height()? - 1;
+        // buffer发生scroll的行数
+        let terminal_height = self.terminal.height()? - 2;
         if self.line_offset > buffer.cursor.line {
             self.line_offset = buffer.cursor.line;
         } else if self.line_offset + terminal_height - 1 < buffer.cursor.line {

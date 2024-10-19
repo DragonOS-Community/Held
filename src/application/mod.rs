@@ -99,7 +99,8 @@ impl Application {
     fn init_modes(&mut self) {
         self.mode_history.insert(ModeKey::Normal, ModeData::Normal);
         self.mode_history.insert(ModeKey::Insert, ModeData::Insert);
-        self.mode_history.insert(ModeKey::Replace, ModeData::Replace);
+        self.mode_history
+            .insert(ModeKey::Replace, ModeData::Replace);
         self.mode_history
             .insert(ModeKey::Error, ModeData::Error(Error::default()));
         self.mode_history.insert(ModeKey::Exit, ModeData::Exit);

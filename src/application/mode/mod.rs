@@ -26,8 +26,7 @@ pub enum ModeData {
     Error(Error),
     Exit,
     Insert,
-    Replace
-    // Other(OtherData)
+    Replace, // Other(OtherData)
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, EnumIter)]

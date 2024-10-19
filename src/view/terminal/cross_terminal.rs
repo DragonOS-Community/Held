@@ -180,7 +180,7 @@ impl Terminal for CrossTerminal {
 
 impl Drop for CrossTerminal {
     fn drop(&mut self) {
-        // self.suspend();
+        self.suspend();
         let _ = disable_raw_mode();
     }
 }

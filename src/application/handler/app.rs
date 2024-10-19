@@ -16,3 +16,8 @@ pub fn to_normal_mode(app: &mut Application) -> Result<()> {
     app.switch_mode(ModeKey::Normal);
     Ok(())
 }
+
+pub fn to_replace_mode(app: &mut Application) -> Result<()> {
+    app.switch_mode(ModeKey::Replace);
+    Ok(())
+}

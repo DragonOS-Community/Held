@@ -8,6 +8,7 @@ use crossterm::{
     terminal::{self, disable_raw_mode},
     QueueableCommand,
 };
+use held_core::view::{colors::Colors, style::CharStyle};
 
 use super::{Terminal, MIN_HEIGHT, MIN_WIDTH, TERMINAL_EXECUTE_ERROR};
 use crate::{errors::*, util::position::Position};
@@ -35,32 +36,28 @@ impl CrossTerminal {
         return self.ansi_buffer.borrow_mut();
     }
 
-    fn update_style(
-        &self,
-        char_style: crate::view::style::CharStyle,
-        colors: crate::view::colors::colors::Colors,
-    ) -> Result<()> {
+    fn update_style(&self, char_style: CharStyle, colors: Colors) -> Result<()> {
         self.buffer().queue(crossterm::style::SetAttribute(
             crossterm::style::Attribute::Reset,
         ))?;
 
         match char_style {
-            crate::view::style::CharStyle::Default => {
+            CharStyle::Default => {
                 self.buffer().queue(crossterm::style::SetAttribute(
                     crossterm::style::Attribute::Reset,
                 ))?;
             }
-            crate::view::style::CharStyle::Bold => {
+            CharStyle::Bold => {
                 self.buffer().queue(crossterm::style::SetAttribute(
                     crossterm::style::Attribute::Bold,
                 ))?;
             }
-            crate::view::style::CharStyle::Reverse => {
+            CharStyle::Reverse => {
                 self.buffer().queue(crossterm::style::SetAttribute(
                     crossterm::style::Attribute::Reverse,
                 ))?;
             }
-            crate::view::style::CharStyle::Italic => {
+            CharStyle::Italic => {
                 self.buffer().queue(crossterm::style::SetAttribute(
                     crossterm::style::Attribute::Italic,
                 ))?;
@@ -68,14 +65,14 @@ impl CrossTerminal {
         }
 
         match colors {
-            crate::view::colors::colors::Colors::Default => {
+            Colors::Default => {
                 self.buffer().queue(crossterm::style::ResetColor)?;
             }
-            crate::view::colors::colors::Colors::CustomForeground(color) => {
+            Colors::CustomForeground(color) => {
                 self.buffer()
                     .queue(crossterm::style::SetForegroundColor(color))?;
             }
-            crate::view::colors::colors::Colors::Custom(fg, bg) => {
+            Colors::Custom(fg, bg) => {
                 self.buffer()
                     .queue(crossterm::style::SetForegroundColor(fg))?;
                 self.buffer()
@@ -158,8 +155,8 @@ impl Terminal for CrossTerminal {
     fn print(
         &self,
         position: &crate::util::position::Position,
-        char_style: crate::view::style::CharStyle,
-        colors: crate::view::colors::colors::Colors,
+        char_style: CharStyle,
+        colors: Colors,
         content: &str,
     ) -> Result<()> {
         self.update_style(char_style, colors)?;

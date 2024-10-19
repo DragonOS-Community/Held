@@ -24,6 +24,12 @@ extern crate simplelog;
 
 use crate::errors::*;
 
+pub static mut APPLICATION: Option<Application> = None;
+
+pub fn get_application() -> &'static mut Application {
+    unsafe { APPLICATION.as_mut().unwrap() }
+}
+
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     let config = CmdConfig::parse();
@@ -38,5 +44,11 @@ fn main() -> Result<()> {
         setting = serde_yaml::from_reader::<File, DeserializeAppOption>(file?).unwrap_or_default();
     }
 
-    Application::new(config.file, setting.to_app_setting(), &args)?.run()
+    let application = Application::new(config.file, setting.to_app_setting(), &args)?;
+
+    unsafe {
+        APPLICATION = Some(application);
+    }
+
+    get_application().run()
 }

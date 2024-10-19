@@ -1,14 +1,13 @@
-use std::{borrow::Cow, fmt::Debug};
+use std::{borrow::Cow, cell::RefCell, fmt::Debug, rc::Rc};
 
 use super::{
-    colors::{colors::Colors, map::ColorMap},
+    colors::map::ColorMap,
     monitor::Monitor,
     render::{
         lexeme_mapper::LexemeMapper,
         render_buffer::{Cell, RenderBuffer},
     },
     status_data::StatusLineData,
-    style::CharStyle,
 };
 use crate::{
     buffer::Buffer,
@@ -16,6 +15,7 @@ use crate::{
     util::{line_iterator::LineIterator, position::Position, range::Range},
     view::render::renderer::Renderer,
 };
+use held_core::view::{colors::Colors, style::CharStyle};
 use syntect::{highlighting::Theme, parsing::SyntaxSet};
 
 pub struct Presenter<'a> {
@@ -125,6 +125,7 @@ impl<'a> Presenter<'a> {
             &self.theme,
             syntax_set,
             scroll_offset,
+            &mut self.view.plugin_system.borrow_mut(),
         )
         .render(lines, lexeme_mapper)?;
         Ok(())

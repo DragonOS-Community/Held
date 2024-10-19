@@ -1,22 +1,17 @@
 use crate::{
     errors::*,
     modules::input::{InputLoader, InputMapper},
-    utils::ui::AppInternalInfomation,
 };
-use app_dirs2::AppInfo;
-use crossterm::{
-    event::{Event, KeyCode, KeyEvent, ModifierKeyCode},
-    terminal::{disable_raw_mode, enable_raw_mode},
-};
+use crossterm::{event::Event, terminal::disable_raw_mode};
+use held_core::plugin::Plugin;
 use mode::{error::ErrorRenderer, ModeData, ModeKey, ModeRenderer, ModeRouter};
 use smallvec::SmallVec;
 
 use std::{
     cell::RefCell,
     collections::HashMap,
-    io::{self, Read},
+    io::{self},
     mem,
-    path::{Path, PathBuf},
     rc::Rc,
     sync::Arc,
 };
@@ -32,6 +27,7 @@ use crate::{
 
 mod handler;
 pub mod mode;
+pub mod plugin_interafce;
 
 pub struct Application {
     file_manager: FileManager,
@@ -50,6 +46,7 @@ pub struct Application {
             SmallVec<[fn(&mut crate::Application) -> std::result::Result<(), Error>; 4]>,
         >,
     >,
+    plugin_system: Rc<RefCell<PluginSystem>>,
 }
 
 impl Application {
@@ -67,8 +64,13 @@ impl Application {
         let buf = file.init(bak)?;
 
         let perferences = PerferencesManager::load()?;
+
+        let plugin_system = Rc::new(RefCell::new(PluginSystem::init_system(
+            perferences.borrow().plugins_path()?,
+        )));
+
         let input_map = InputLoader::load(perferences.borrow().input_config_path()?)?;
-        let mut monitor = Monitor::new(perferences.clone())?;
+        let mut monitor = Monitor::new(perferences.clone(), plugin_system.clone())?;
         let workspace = Workspace::create_workspace(&mut monitor, perferences.borrow(), args)?;
         Ok(Self {
             file_manager: file,
@@ -81,6 +83,7 @@ impl Application {
             mode_key: ModeKey::Normal,
             mode_history: HashMap::new(),
             input_map,
+            plugin_system,
         })
     }
 
@@ -89,6 +92,7 @@ impl Application {
         // PluginSystem::init_system();
         // self.monitor.terminal.clear().unwrap();
         self.init_modes();
+        self.plugin_system.borrow().init();
         // if !self.bak {
         //     self.ui.start_page_ui()?;
         // }
@@ -136,7 +140,7 @@ impl Application {
     }
 
     fn listen_event(&mut self) -> Result<()> {
-        let event = self.monitor.terminal.listen()?;
+        let event = self.monitor.listen()?;
         self.handle_input(event)?;
         Ok(())
     }
@@ -168,9 +172,6 @@ impl Application {
     }
 
     fn handle_input(&mut self, event: Event) -> Result<()> {
-        if let Event::Key(key_event) = event {
-            self.monitor.last_key = Some(key_event);
-        }
         let key = InputMapper::event_map_str(event);
         if key.is_none() {
             return Ok(());

@@ -3,8 +3,8 @@ use std::fmt::Debug;
 use crate::errors::*;
 use crate::util::position::Position;
 use crossterm::event::Event;
-
-use super::{colors::colors::Colors, style::CharStyle};
+use held_core::view::colors::Colors;
+use held_core::view::style::CharStyle;
 
 pub mod cross_terminal;
 

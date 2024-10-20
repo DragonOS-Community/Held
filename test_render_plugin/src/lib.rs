@@ -29,15 +29,27 @@ impl Plugin for RenderTestPlugin {
     fn deinit(&self) {}
 
     fn on_render_content(&self) -> Vec<ContentRenderBuffer> {
+        let cursor_position = interface::cursor::screen_cursor_position();
+
+        let width = 10;
         let mut buffer = ContentRenderBuffer::new(Rectangle {
-            position: interface::cursor::screen_cursor_position(),
-            width: 1,
+            position: Position {
+                line: cursor_position.line.saturating_sub(1),
+                offset: cursor_position.offset - width / 2,
+            },
+            width,
             height: 1,
         });
 
-        buffer.set_cell(
-            Position::new(0, 0),
-            Some(Cell::new('!', Colors::Warning, CharStyle::Bold)),
+        let buffer_str = format!("{}:{}", cursor_position.offset, cursor_position.line);
+        buffer.put_buffer(
+            Position {
+                line: 0,
+                offset: (width - buffer_str.len()) / 2,
+            },
+            buffer_str,
+            CharStyle::Bold,
+            Colors::Warning,
         );
 
         vec![buffer]

@@ -28,12 +28,14 @@ impl ContentRenderBuffer {
     pub fn put_buffer(
         &mut self,
         position: Position,
-        buffer: Chars,
+        buffer: String,
         style: CharStyle,
         colors: Colors,
     ) {
-        let index = position.line * self.rectangle.width + position.offset;
-        for c in buffer {
+        let mut line = position.line;
+        let mut offset = position.offset;
+        for c in buffer.chars() {
+            let index = line * self.rectangle.width + offset;
             if index < self.cells.len() {
                 let cell = Cell {
                     content: c,
@@ -41,6 +43,11 @@ impl ContentRenderBuffer {
                     style,
                 };
                 self.cells[index] = Some(cell);
+                offset += 1;
+                if offset == self.rectangle.width {
+                    line += 1;
+                    offset = 0;
+                }
             } else {
                 break;
             }

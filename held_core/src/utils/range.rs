@@ -1,4 +1,4 @@
-use crate::util::position::Position;
+use crate::utils::position::Position;
 
 /// Range: 左开右闭区间
 #[derive(Clone, Debug, PartialEq)]

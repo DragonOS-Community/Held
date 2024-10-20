@@ -24,6 +24,6 @@ impl interface::cursor::Cursor for Application {
     }
 
     fn screen_cursor_position(&self) -> held_core::utils::position::Position {
-        self.monitor.
+        self.state_data.cursor_state.screen_position
     }
 }

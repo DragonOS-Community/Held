@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use app::App;
 use buffer::Buffer;
 use cursor::Cursor;
@@ -10,6 +8,8 @@ pub mod app;
 pub mod buffer;
 pub mod cursor;
 pub mod monitor;
+pub mod render;
+pub mod terminal;
 pub mod workspace;
 
 pub trait ApplicationInterface: App + Buffer + Cursor + Monitor + Workspace {}

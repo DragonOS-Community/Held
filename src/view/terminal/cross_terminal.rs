@@ -8,10 +8,13 @@ use crossterm::{
     terminal::{self, disable_raw_mode},
     QueueableCommand,
 };
-use held_core::view::{colors::Colors, style::CharStyle};
+use held_core::{
+    utils::position::Position,
+    view::{colors::Colors, style::CharStyle},
+};
 
 use super::{Terminal, MIN_HEIGHT, MIN_WIDTH, TERMINAL_EXECUTE_ERROR};
-use crate::{errors::*, util::position::Position};
+use crate::errors::*;
 
 #[derive(Debug)]
 pub struct CrossTerminal {
@@ -123,7 +126,7 @@ impl Terminal for CrossTerminal {
         return Ok(height.max(MIN_HEIGHT).into());
     }
 
-    fn set_cursor(&self, position: Option<crate::util::position::Position>) -> Result<()> {
+    fn set_cursor(&self, position: Option<Position>) -> Result<()> {
         match position {
             Some(position) => {
                 self.buffer()
@@ -154,7 +157,7 @@ impl Terminal for CrossTerminal {
 
     fn print(
         &self,
-        position: &crate::util::position::Position,
+        position: &Position,
         char_style: CharStyle,
         colors: Colors,
         content: &str,

@@ -4,15 +4,15 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::str::FromStr;
 
-use crate::errors::*;
 use crate::modules::perferences::Perferences;
 use crate::plugin::system::PluginSystem;
-use crate::util::position::Position;
-use crate::util::range::Range;
 use crate::view::colors::to_rgb;
 use crate::{buffer::Buffer, util::line_iterator::LineIterator, view::terminal::Terminal};
+use crate::{errors::*, get_application};
 use crossterm::style::Color;
 use held_core::plugin::Plugin;
+use held_core::utils::position::Position;
+use held_core::utils::range::Range;
 use held_core::view::colors::Colors;
 use held_core::view::render::ContentRenderBuffer;
 use held_core::view::style::CharStyle;
@@ -179,6 +179,8 @@ impl<'a, 'p> Renderer<'a, 'p> {
         let mut line = 0;
         let mut offset = 0;
         let init_pos = buffer.rectangle.position;
+
+        warn!("plugin cells {:?}", buffer.cells);
         for cell in buffer.cells {
             if let Some(cell) = cell {
                 self.render_cell(
@@ -234,6 +236,7 @@ impl<'a, 'p> Renderer<'a, 'p> {
     fn set_cursor(&mut self) {
         if self.inside_visible() && *self.buffer.cursor == self.buffer_position {
             self.cursor_position = Some(self.screen_position);
+            get_application().state_data.cursor_state.screen_position = self.screen_position;
         }
     }
 

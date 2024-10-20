@@ -10,12 +10,12 @@ use super::{
     status_data::StatusLineData,
 };
 use crate::{
-    buffer::Buffer,
-    errors::*,
-    util::{line_iterator::LineIterator, position::Position, range::Range},
-    view::render::renderer::Renderer,
+    buffer::Buffer, errors::*, util::line_iterator::LineIterator, view::render::renderer::Renderer,
 };
-use held_core::view::{colors::Colors, style::CharStyle};
+use held_core::{
+    utils::{position::Position, range::Range},
+    view::{colors::Colors, style::CharStyle},
+};
 use syntect::{highlighting::Theme, parsing::SyntaxSet};
 
 pub struct Presenter<'a> {
@@ -115,7 +115,8 @@ impl<'a> Presenter<'a> {
     ) -> Result<()> {
         let scroll_offset = self.view.get_scroll_controller(buffer).line_offset();
         let lines = LineIterator::new(&buffer_data);
-        self.cursor_position = Renderer::new(
+
+        let cursor_position = Renderer::new(
             buffer,
             &mut self.present_buffer,
             &**self.view.terminal,
@@ -128,6 +129,12 @@ impl<'a> Presenter<'a> {
             &mut self.view.plugin_system.borrow_mut(),
         )
         .render(lines, lexeme_mapper)?;
+
+        match cursor_position {
+            Some(position) => self.set_cursor(position),
+            None => self.cursor_position = None,
+        }
+
         Ok(())
     }
 

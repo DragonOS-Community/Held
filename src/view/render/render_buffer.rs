@@ -3,7 +3,7 @@ use std::{borrow::Cow, cell::RefCell, rc::Rc};
 use held_core::view::{colors::Colors, style::CharStyle};
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::util::position::Position;
+use held_core::utils::position::Position;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cell<'a> {

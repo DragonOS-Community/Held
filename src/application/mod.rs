@@ -6,6 +6,7 @@ use crossterm::{event::Event, terminal::disable_raw_mode};
 use held_core::plugin::Plugin;
 use mode::{error::ErrorRenderer, ModeData, ModeKey, ModeRenderer, ModeRouter};
 use smallvec::SmallVec;
+use state::ApplicationStateData;
 
 use std::{
     cell::RefCell,
@@ -28,6 +29,7 @@ use crate::{
 mod handler;
 pub mod mode;
 pub mod plugin_interafce;
+pub mod state;
 
 pub struct Application {
     file_manager: FileManager,
@@ -47,6 +49,7 @@ pub struct Application {
         >,
     >,
     plugin_system: Rc<RefCell<PluginSystem>>,
+    pub state_data: ApplicationStateData,
 }
 
 impl Application {
@@ -84,6 +87,7 @@ impl Application {
             mode_history: HashMap::new(),
             input_map,
             plugin_system,
+            state_data: ApplicationStateData::default(),
         })
     }
 

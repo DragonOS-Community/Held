@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
 use crate::errors::*;
-use crate::util::position::Position;
 use crossterm::event::Event;
+use held_core::utils::position::Position;
 use held_core::view::colors::Colors;
 use held_core::view::style::CharStyle;
 

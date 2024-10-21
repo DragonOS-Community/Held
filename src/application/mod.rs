@@ -8,7 +8,7 @@ use crossterm::{
     event::{Event, KeyCode, KeyEvent, ModifierKeyCode},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
-use mode::{error::ErrorRenderer, ModeData, ModeKey, ModeRenderer, ModeRouter};
+use mode::{error::ErrorRenderer, search::SearchData, ModeData, ModeKey, ModeRenderer, ModeRouter};
 use smallvec::SmallVec;
 
 use std::{
@@ -102,6 +102,8 @@ impl Application {
         self.mode_history
             .insert(ModeKey::Error, ModeData::Error(Error::default()));
         self.mode_history.insert(ModeKey::Exit, ModeData::Exit);
+        self.mode_history
+            .insert(ModeKey::Search, ModeData::Search(SearchData::new()));
     }
 
     pub fn run(&mut self) -> Result<()> {

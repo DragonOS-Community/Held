@@ -7,6 +7,7 @@ use error_chain::bail;
 use insert::InsertRenderer;
 use linked_hash_map::LinkedHashMap;
 use normal::NormalRenderer;
+use search::{SearchData, SearchRenderer};
 use smallvec::SmallVec;
 use strum::EnumIter;
 use yaml_rust::Yaml;
@@ -17,6 +18,7 @@ use super::Application;
 pub mod error;
 mod insert;
 mod normal;
+pub mod search;
 
 #[derive(Debug)]
 pub enum ModeData {
@@ -24,6 +26,7 @@ pub enum ModeData {
     Error(Error),
     Exit,
     Insert,
+    Search(SearchData),
     // Other(OtherData)
 }
 
@@ -33,6 +36,7 @@ pub enum ModeKey {
     Error,
     Exit,
     Insert,
+    Search,
 }
 
 impl ModeKey {
@@ -40,6 +44,7 @@ impl ModeKey {
         match self {
             ModeKey::Normal => Some("normal".into()),
             ModeKey::Insert => Some("insert".into()),
+            ModeKey::Search => Some("search".into()),
             _ => None,
         }
     }
@@ -135,6 +140,7 @@ impl ModeRenderer for ModeRouter {
             ModeData::Normal => NormalRenderer::render(workspace, monitor, mode),
             ModeData::Error(_) => ErrorRenderer::render(workspace, monitor, mode),
             ModeData::Insert => InsertRenderer::render(workspace, monitor, mode),
+            ModeData::Search(_) => SearchRenderer::render(workspace, monitor, mode),
             ModeData::Exit => todo!(),
         }
     }

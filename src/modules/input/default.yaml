@@ -20,7 +20,7 @@ normal:
   shift-H: cursor::move_to_start_of_line
   shift-T: monitor::scroll_to_first_line
   shift-B: monitor::scroll_to_last_line
-  G: normal::move_to_target_line
+  shift-G: normal::move_to_target_line
   j: normal::move_down_n
   k: normal::move_up_n
   h: normal::move_left_n

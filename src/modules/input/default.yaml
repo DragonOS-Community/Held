@@ -16,10 +16,19 @@ normal:
     - cursor::move_to_start_of_line
   backspace: cursor::move_left
   escape: normal::reset
-  $: cursor::move_to_end_of_line
-  _:
+  shift-L: cursor::move_to_end_of_line
+  shift-H: cursor::move_to_start_of_line
+  shift-T: monitor::scroll_to_first_line
+  shift-B: monitor::scroll_to_last_line
+  G: normal::move_to_target_line
+  j: normal::move_down_n
+  k: normal::move_up_n
+  h: normal::move_left_n
+  l: normal::move_right_n
+  d: 
     - normal::transition
-    - normal::execute
+    - normal::delete_some
+  _: normal::transition
 insert:
   escape: app::to_normal_mode
   left: cursor::move_left

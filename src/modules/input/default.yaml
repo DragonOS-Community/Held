@@ -35,4 +35,5 @@ search:
   enter: search::exec_search
   up: search::last_result
   down: search::next_result
+  ctrl-c: app::exit
   _:  search::input_search_data

@@ -33,9 +33,11 @@ pub fn input_search_data(app: &mut Application) -> Result<()> {
     if let Some(key) = app.monitor.last_key {
         if let KeyCode::Char(c) = key.code {
             if let ModeData::Search(ref mut search_data) = app.mode {
-                search_data
-                    .search_string
-                    .insert(search_data.search_string.len(), c);
+                if search_data.is_exec_search == false {
+                    search_data
+                        .search_string
+                        .insert(search_data.search_string.len(), c);
+                }
             }
         }
     }
@@ -44,7 +46,7 @@ pub fn input_search_data(app: &mut Application) -> Result<()> {
 
 pub fn backspace(app: &mut Application) -> Result<()> {
     if let ModeData::Search(ref mut search_data) = app.mode {
-        if search_data.search_string.len() > 0 {
+        if search_data.is_exec_search == false && search_data.search_string.len() > 0 {
             search_data
                 .search_string
                 .remove(search_data.search_string.len() - 1);
@@ -55,9 +57,9 @@ pub fn backspace(app: &mut Application) -> Result<()> {
 
 pub fn last_result(app: &mut Application) -> Result<()> {
     if let ModeData::Search(ref mut search_data) = app.mode {
-        if search_data.is_exec_search == true {
+        if search_data.is_exec_search == true && search_data.search_result.len() != 1 {
             search_data.search_result_index =
-                (search_data.search_result_index + search_data.search_result.len() - 1)
+                (search_data.search_result_index + search_data.search_result.len() - 2)
                     % (search_data.search_result.len() - 1);
         }
     }
@@ -66,7 +68,7 @@ pub fn last_result(app: &mut Application) -> Result<()> {
 
 pub fn next_result(app: &mut Application) -> Result<()> {
     if let ModeData::Search(ref mut search_data) = app.mode {
-        if search_data.is_exec_search == true {
+        if search_data.is_exec_search == true && search_data.search_result.len() != 1 {
             search_data.search_result_index =
                 (search_data.search_result_index + 1) % (search_data.search_result.len() - 1);
         }

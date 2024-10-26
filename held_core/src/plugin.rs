@@ -1,40 +1,14 @@
-use std::sync::Mutex;
-
-static MANAGER: PluginRegister = PluginRegister::new();
-
-pub struct PluginRegister {
-    plugins: Mutex<Vec<Box<dyn Plugin>>>,
-}
-
-unsafe impl Send for PluginRegister {}
-unsafe impl Sync for PluginRegister {}
-
-impl PluginRegister {
-    const fn new() -> Self {
-        Self {
-            plugins: Mutex::new(Vec::new()),
-        }
-    }
-    pub fn get_instance() -> &'static Self {
-        return &MANAGER;
-    }
-
-    pub fn register_plugin(&self, plugin: Box<dyn Plugin>) {
-        self.plugins.lock().unwrap().push(plugin);
-    }
-
-    pub(crate) fn consume(&self) -> Vec<Box<dyn Plugin>> {
-        let mut guard = self.plugins.lock().unwrap();
-        let mut ret = Vec::with_capacity(guard.len());
-        ret.append(&mut guard);
-        ret
-    }
-}
+use crate::view::render::ContentRenderBuffer;
 
 pub trait Plugin {
-    fn name(&self) -> String;
+    fn name(&self) -> &'static str;
 
-    fn init(&mut self);
+    fn init(&self);
 
-    fn deinit(&mut self);
+    fn deinit(&self);
+
+    // 渲染文本内容部分时会触发该回调，可以返回想要在content中渲染的buffer
+    fn on_render_content(&self) -> Vec<ContentRenderBuffer> {
+        vec![]
+    }
 }

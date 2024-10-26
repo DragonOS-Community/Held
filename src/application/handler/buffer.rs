@@ -1,7 +1,8 @@
 use crossterm::event::KeyCode;
+use held_core::utils::position::Position;
 
+use crate::application::Application;
 use crate::errors::*;
-use crate::{application::Application, util::position::Position};
 
 use super::cursor;
 

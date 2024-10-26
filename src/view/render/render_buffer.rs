@@ -1,11 +1,9 @@
 use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
+use held_core::view::{colors::Colors, style::CharStyle};
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::{
-    util::position::Position,
-    view::{colors::colors::Colors, style::CharStyle},
-};
+use held_core::utils::position::Position;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cell<'a> {
@@ -102,8 +100,10 @@ impl<'a> RenderBuffer<'a> {
     }
 
     pub fn set_cell(&mut self, position: Position, cell: Cell<'a>) {
+        if position.line >= self.height || position.offset >= self.width {
+            return;
+        }
         let index = position.line * self.width + position.offset;
-
         if index < self.cells.len() {
             self.cells[index] = cell;
         }

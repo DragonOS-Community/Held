@@ -2,6 +2,10 @@ use std::{collections::HashSet, os::unix::fs::MetadataExt, path::PathBuf};
 
 use crossterm::style::Color;
 use error_chain::bail;
+use held_core::{
+    utils::{position::Position, range::Range},
+    view::{colors::Colors, style::CharStyle},
+};
 use unicode_segmentation::UnicodeSegmentation;
 use walkdir::{DirEntry, DirEntryExt, WalkDir};
 
@@ -9,10 +13,7 @@ use super::{ModeData, ModeRenderer};
 use crate::{
     buffer::Buffer,
     errors::*,
-    util::{position::Position, range::Range},
-    view::{
-        colors::colors::Colors, monitor::Monitor, status_data::StatusLineData, style::CharStyle,
-    },
+    view::{monitor::Monitor, status_data::StatusLineData},
     workspace::Workspace,
 };
 pub struct WorkspaceModeData {

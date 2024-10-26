@@ -6,9 +6,9 @@ use super::{
     terminal::{cross_terminal::CrossTerminal, Terminal},
     theme_loadler::ThemeLoader,
 };
-use crate::buffer::Buffer;
 use crate::errors::*;
 use crate::modules::perferences::Perferences;
+use crate::{buffer::Buffer, plugin::system::PluginSystem};
 use crossterm::event::{Event, KeyEvent};
 use scroll_controller::ScrollController;
 use syntect::highlighting::{Theme, ThemeSet};
@@ -24,10 +24,14 @@ pub struct Monitor {
     render_caches: HashMap<usize, Rc<RefCell<HashMap<usize, RenderState>>>>,
     pub last_key: Option<KeyEvent>,
     pub cached_render_buffer: Rc<RefCell<CachedRenderBuffer>>,
+    pub plugin_system: Rc<RefCell<PluginSystem>>,
 }
 
 impl Monitor {
-    pub fn new(perference: Rc<RefCell<dyn Perferences>>) -> Result<Monitor> {
+    pub fn new(
+        perference: Rc<RefCell<dyn Perferences>>,
+        plugin_system: Rc<RefCell<PluginSystem>>,
+    ) -> Result<Monitor> {
         let terminal = CrossTerminal::new()?;
         let cached_render_buffer = CachedRenderBuffer::new(terminal.width()?, terminal.height()?);
         let theme_set = ThemeLoader::new(perference.borrow().theme_path()?).load()?;
@@ -39,6 +43,7 @@ impl Monitor {
             render_caches: HashMap::new(),
             last_key: None,
             cached_render_buffer: Rc::new(RefCell::new(cached_render_buffer)),
+            plugin_system,
         })
     }
 

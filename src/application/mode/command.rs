@@ -1,16 +1,13 @@
 use std::{collections::HashMap, process::CommandArgs};
 
-use super::{ModeData, ModeRenderer};
-use crate::errors::Error;
-use crate::util::position::Position;
-use crate::{
-    application::Application,
-    view::{
-        colors::colors::Colors,
-        status_data::{buffer_status_data, StatusLineData},
-        style::CharStyle,
-    },
+use held_core::{
+    utils::position::Position,
+    view::{colors::Colors, style::CharStyle},
 };
+
+use crate::view::status_data::StatusLineData;
+
+use super::{ModeData, ModeRenderer};
 
 const EDITED_NO_STORE: &'static str = "Changes have not been saved";
 const NOT_FOUNT_CMD: &'static str = "Command Not Fount";

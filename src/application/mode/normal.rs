@@ -1,11 +1,9 @@
+use held_core::view::{colors::Colors, style::CharStyle};
+
 use super::ModeRenderer;
 use crate::{
     errors::*,
-    view::{
-        colors::colors::Colors,
-        status_data::{buffer_status_data, StatusLineData},
-        style::CharStyle,
-    },
+    view::status_data::{buffer_status_data, StatusLineData},
 };
 pub(super) struct NormalRenderer;
 

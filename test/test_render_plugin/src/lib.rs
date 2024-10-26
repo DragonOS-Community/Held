@@ -2,11 +2,7 @@ use held_core::{
     declare_plugin, interface,
     plugin::Plugin,
     utils::{position::Position, rectangle::Rectangle},
-    view::{
-        colors::Colors,
-        render::{cell::Cell, ContentRenderBuffer},
-        style::CharStyle,
-    },
+    view::{colors::Colors, render::ContentRenderBuffer, style::CharStyle},
 };
 
 declare_plugin!(RenderTestPlugin, RenderTestPlugin::new);

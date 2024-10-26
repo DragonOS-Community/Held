@@ -7,4 +7,4 @@ edition = "2021"
 crate-type = ["rlib", "dylib", "staticlib"]
 
 [dependencies]
-held_core = { path = "../held_core" }
+held_core = { path = "../../held_core" }

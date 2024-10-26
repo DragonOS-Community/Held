@@ -4,15 +4,18 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::str::FromStr;
 
-use crate::errors::*;
 use crate::modules::perferences::Perferences;
-use crate::util::position::Position;
-use crate::util::range::Range;
-use crate::view::colors::colors::Colors;
+use crate::plugin::system::PluginSystem;
 use crate::view::colors::to_rgb;
-use crate::view::style::CharStyle;
 use crate::{buffer::Buffer, util::line_iterator::LineIterator, view::terminal::Terminal};
+use crate::{errors::*, get_application};
 use crossterm::style::Color;
+use held_core::plugin::Plugin;
+use held_core::utils::position::Position;
+use held_core::utils::range::Range;
+use held_core::view::colors::Colors;
+use held_core::view::render::ContentRenderBuffer;
+use held_core::view::style::CharStyle;
 use syntect::highlighting::{HighlightIterator, Highlighter, Style, Theme};
 use syntect::parsing::{ScopeStack, SyntaxSet};
 
@@ -41,6 +44,7 @@ pub struct Renderer<'a, 'p> {
     cursor_position: Option<Position>,
     current_style: Style,
     perferences: &'a dyn Perferences,
+    plugin_system: &'a mut PluginSystem,
 }
 
 impl<'a, 'p> Renderer<'a, 'p> {
@@ -54,6 +58,7 @@ impl<'a, 'p> Renderer<'a, 'p> {
         theme: &'a Theme,
         syntax_set: &'a SyntaxSet,
         scroll_offset: usize,
+        plugin_system: &'a mut PluginSystem,
     ) -> Renderer<'a, 'p> {
         let line_number_iter = LineNumberStringIter::new(buffer, scroll_offset);
         let content_start_of_line = line_number_iter.width() + 1;
@@ -73,6 +78,7 @@ impl<'a, 'p> Renderer<'a, 'p> {
             highlight_ranges,
             line_number_iter,
             content_start_of_line,
+            plugin_system,
         }
     }
 
@@ -148,6 +154,8 @@ impl<'a, 'p> Renderer<'a, 'p> {
             self.try_to_advance_to_next_line(&line_data);
         }
 
+        self.render_plugins()?;
+
         Ok(self.cursor_position)
     }
 
@@ -157,6 +165,43 @@ impl<'a, 'p> Renderer<'a, 'p> {
                 .unwrap_or_default()
                 .as_slice(),
         )
+    }
+
+    fn render_plugins(&mut self) -> Result<()> {
+        let plugin_buffers = self.plugin_system.on_render_content();
+        for plugin_buffer in plugin_buffers {
+            self.render_plugin(plugin_buffer)?;
+        }
+        Ok(())
+    }
+
+    fn render_plugin(&mut self, buffer: ContentRenderBuffer) -> Result<()> {
+        let mut line = 0;
+        let mut offset = 0;
+        let init_pos = buffer.rectangle.position;
+
+        warn!("plugin cells {:?}", buffer.cells);
+        for cell in buffer.cells {
+            if let Some(cell) = cell {
+                self.render_cell(
+                    Position {
+                        line: init_pos.line + line,
+                        offset: init_pos.offset + offset,
+                    },
+                    cell.style,
+                    cell.colors,
+                    cell.content.to_string(),
+                );
+            }
+
+            offset += 1;
+            if offset == buffer.rectangle.width {
+                offset = 0;
+                line += 1;
+            }
+        }
+
+        Ok(())
     }
 
     fn mapper_comment_style(highlighter: &Highlighter) -> Style {
@@ -191,6 +236,7 @@ impl<'a, 'p> Renderer<'a, 'p> {
     fn set_cursor(&mut self) {
         if self.inside_visible() && *self.buffer.cursor == self.buffer_position {
             self.cursor_position = Some(self.screen_position);
+            get_application().state_data.cursor_state.screen_position = self.screen_position;
         }
     }
 
@@ -454,6 +500,7 @@ mod tests {
                 &theme,
                 &syntax_set,
                 0,
+                todo!(),
             );
             renderer.render(LineIterator::new(&binding), None).unwrap();
         }

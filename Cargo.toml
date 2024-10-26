@@ -6,9 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = [
-    "held_core"
-]
+members = ["held_core", "test/test_render_plugin"]
 
 [features]
 dragonos = []
@@ -32,11 +30,9 @@ serde_yaml = "0.9"
 # 定义标志位
 bitflags = "2.4.2"
 
-# 加载插件
-libloading = "0.8.5"
 walkdir = "2.5.0"
 
-held_core = { path = "./held_core", version = "*" }
+held_core = { path = "./held_core" }
 unicode-segmentation = "1.12.0"
 syntect = "5.2.0"
 error-chain = "0.12.4"
@@ -45,6 +41,7 @@ app_dirs2 = "2.5.5"
 linked-hash-map = "0.5.6"
 strum = { version = "^0.26.3", features = ["std","derive"] }
 smallvec = "1.13.2"
+dlopen2 = "0.7.0"
 
 [build-dependencies]
 regex = "1.10"

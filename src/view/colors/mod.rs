@@ -1,4 +1,3 @@
-pub mod colors;
 pub mod map;
 
 use crossterm::style::Color;

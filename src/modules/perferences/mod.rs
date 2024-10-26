@@ -15,6 +15,7 @@ pub mod yaml;
 const SYNTAX_PATH: &str = "syntaxes";
 const THEME_PATH: &str = "themes";
 const INPUT_CONFIG_PATH: &str = "input";
+const PLUGINS_PATH: &str = "plugins";
 const THEME_KET: &str = "theme";
 const LANGUAGE_KEY: &str = "language";
 const LANGUAGE_SYNTAX_KEY: &str = "syntax";
@@ -51,6 +52,17 @@ pub trait Perferences {
         #[cfg(not(feature = "dragonos"))]
         {
             app_dir(AppDataType::UserConfig, &APP_INFO, INPUT_CONFIG_PATH)
+                .chain_err(|| "Couldn't create a themes directory or build a path tp it")
+        }
+        #[cfg(feature = "dragonos")]
+        Ok(PathBuf::new())
+    }
+
+    // 插件路径
+    fn plugins_path(&self) -> Result<PathBuf> {
+        #[cfg(not(feature = "dragonos"))]
+        {
+            app_dir(AppDataType::UserConfig, &APP_INFO, PLUGINS_PATH)
                 .chain_err(|| "Couldn't create a themes directory or build a path tp it")
         }
         #[cfg(feature = "dragonos")]

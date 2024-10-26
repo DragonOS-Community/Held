@@ -9,6 +9,7 @@ use linked_hash_map::LinkedHashMap;
 use normal::NormalRenderer;
 use smallvec::SmallVec;
 use strum::EnumIter;
+use workspace::{WorkspaceModeData, WorkspaceRender};
 use yaml_rust::Yaml;
 
 use super::handler::handle_map;
@@ -17,13 +18,14 @@ use super::Application;
 pub mod error;
 mod insert;
 mod normal;
+pub mod workspace;
 
-#[derive(Debug)]
 pub enum ModeData {
     Normal,
     Error(Error),
     Exit,
     Insert,
+    Workspace(WorkspaceModeData),
     // Other(OtherData)
 }
 
@@ -33,6 +35,7 @@ pub enum ModeKey {
     Error,
     Exit,
     Insert,
+    Workspace,
 }
 
 impl ModeKey {
@@ -40,6 +43,7 @@ impl ModeKey {
         match self {
             ModeKey::Normal => Some("normal".into()),
             ModeKey::Insert => Some("insert".into()),
+            ModeKey::Workspace => Some("workspace".into()),
             _ => None,
         }
     }
@@ -135,6 +139,7 @@ impl ModeRenderer for ModeRouter {
             ModeData::Normal => NormalRenderer::render(workspace, monitor, mode),
             ModeData::Error(_) => ErrorRenderer::render(workspace, monitor, mode),
             ModeData::Insert => InsertRenderer::render(workspace, monitor, mode),
+            ModeData::Workspace(_) => WorkspaceRender::render(workspace, monitor, mode),
             ModeData::Exit => todo!(),
         }
     }

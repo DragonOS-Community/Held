@@ -1,20 +1,20 @@
-use std::{borrow::Cow, fmt::Debug};
+use std::{borrow::Cow, cell::RefCell, fmt::Debug, rc::Rc};
 
 use super::{
-    colors::{colors::Colors, map::ColorMap},
+    colors::map::ColorMap,
     monitor::Monitor,
     render::{
         lexeme_mapper::LexemeMapper,
         render_buffer::{Cell, RenderBuffer},
     },
     status_data::StatusLineData,
-    style::CharStyle,
 };
 use crate::{
-    buffer::Buffer,
-    errors::*,
-    util::{line_iterator::LineIterator, position::Position, range::Range},
-    view::render::renderer::Renderer,
+    buffer::Buffer, errors::*, util::line_iterator::LineIterator, view::render::renderer::Renderer,
+};
+use held_core::{
+    utils::{position::Position, range::Range},
+    view::{colors::Colors, style::CharStyle},
 };
 use syntect::{highlighting::Theme, parsing::SyntaxSet};
 
@@ -97,6 +97,7 @@ impl<'a> Presenter<'a> {
             };
 
             let len = content.len();
+            warn!("line {line}, offset {offset}, content {content}");
             self.print(&Position { line, offset }, data.style, data.color, content);
             offset += len;
         }
@@ -110,12 +111,13 @@ impl<'a> Presenter<'a> {
         buffer: &Buffer,
         buffer_data: &'a str,
         syntax_set: &'a SyntaxSet,
-        highlights: Option<&[Range]>,
+        highlights: Option<&'a [(Range, CharStyle, Colors)]>,
         lexeme_mapper: Option<&'a mut dyn LexemeMapper>,
     ) -> Result<()> {
         let scroll_offset = self.view.get_scroll_controller(buffer).line_offset();
         let lines = LineIterator::new(&buffer_data);
-        self.cursor_position = Renderer::new(
+
+        let cursor_position = Renderer::new(
             buffer,
             &mut self.present_buffer,
             &**self.view.terminal,
@@ -125,8 +127,15 @@ impl<'a> Presenter<'a> {
             &self.theme,
             syntax_set,
             scroll_offset,
+            &mut self.view.plugin_system.borrow_mut(),
         )
         .render(lines, lexeme_mapper)?;
+
+        match cursor_position {
+            Some(position) => self.set_cursor(position),
+            None => self.cursor_position = None,
+        }
+
         Ok(())
     }
 

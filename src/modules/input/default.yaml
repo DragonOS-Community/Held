@@ -28,6 +28,7 @@ normal:
   d: 
     - normal::transition
     - normal::delete_some
+  w: app::to_workspace_mode
   _: normal::transition
 insert:
   escape: app::to_normal_mode
@@ -46,3 +47,9 @@ insert:
   tab: buffer::insert_tab
   _: 
     - buffer::insert_char
+workspace:
+  up: workspace::move_up
+  down: workspace::move_down
+  enter: workspace::enter
+  escape: workspace::to_normal_mode
+  ctrl-c: app::exit

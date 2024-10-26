@@ -1,7 +1,8 @@
 use crossterm::style::Color;
+use held_core::view::colors::Colors;
 use syntect::highlighting::Theme;
 
-use super::{colors::Colors, to_rgb};
+use super::to_rgb;
 
 pub trait ColorMap {
     fn map_colors(&self, colors: Colors) -> Colors;

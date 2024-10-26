@@ -1,11 +1,11 @@
+use held_core::utils::position::Position;
+use held_core::utils::range::Range;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::application::mode::normal::*;
 use crate::application::mode::{ModeData, ModeState};
 use crate::application::Application;
 use crate::errors::*;
-use crate::util::position::Position;
-use crate::util::range::Range;
 
 pub fn transition(app: &mut Application) -> Result<()> {
     if let ModeData::Normal(normal_state) = &mut app.mode {

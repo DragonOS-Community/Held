@@ -1,6 +1,6 @@
-use crate::buffer::Buffer;
+use held_core::view::{colors::Colors, style::CharStyle};
 
-use super::{colors::colors::Colors, style::CharStyle};
+use crate::buffer::Buffer;
 
 pub struct StatusLineData {
     pub content: String,

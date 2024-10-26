@@ -1,18 +1,11 @@
-use std::borrow::Borrow;
-
 use crossterm::event::{KeyCode, KeyEvent};
-use unicode_segmentation::UnicodeSegmentation;
+use held_core::view::{colors::Colors, style::CharStyle};
 
-use super::{ModeData, ModeRenderer, ModeState};
+use super::{ModeRenderer, ModeState};
 use crate::{
     application::Application,
     errors::*,
-    util::{position::Position, range::Range},
-    view::{
-        colors::colors::Colors,
-        status_data::{buffer_status_data, StatusLineData},
-        style::CharStyle,
-    },
+    view::status_data::{buffer_status_data, StatusLineData},
 };
 pub(super) struct NormalRenderer;
 
@@ -25,6 +18,7 @@ impl ModeRenderer for NormalRenderer {
         let mut presenter = monitor.build_presenter()?;
 
         if let Some(buffer) = &workspace.current_buffer {
+            warn!("normal buffer id: {}", buffer.id.unwrap());
             let data = buffer.data();
             presenter.print_buffer(buffer, &data, &workspace.syntax_set, None, None)?;
 

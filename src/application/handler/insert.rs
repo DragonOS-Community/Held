@@ -1,6 +1,7 @@
+use held_core::utils::position::Position;
+
 use crate::application::Application;
 use crate::errors::*;
-use crate::util::position::Position;
 
 pub fn backspace(app: &mut Application) -> Result<()> {
     if let Some(ref mut buffer) = app.workspace.current_buffer {

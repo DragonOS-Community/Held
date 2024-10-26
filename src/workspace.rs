@@ -1,7 +1,9 @@
 use std::{
     cell::Ref,
-    env, mem,
-    path::{self, Path, PathBuf},
+    collections::HashMap,
+    env,
+    os::unix::fs::MetadataExt,
+    path::{Path, PathBuf},
 };
 
 use crate::{
@@ -15,11 +17,12 @@ use crate::buffer::Buffer;
 
 pub struct Workspace {
     pub path: PathBuf,
-    buffers: Vec<Buffer>,
+    buffers: HashMap<usize, Buffer>,
+    // ino -> id
+    buffers_ino_map: HashMap<u64, usize>,
     pub current_buffer: Option<Buffer>,
     pub syntax_set: SyntaxSet,
     buffer_ida: usize,
-    current_buffer_index: Option<usize>,
 }
 
 impl Workspace {
@@ -96,27 +99,34 @@ impl Workspace {
 
         Ok(Workspace {
             path: path.canonicalize()?,
-            buffers: vec![],
+            buffers: HashMap::new(),
+            buffers_ino_map: HashMap::new(),
             current_buffer: None,
             syntax_set,
             buffer_ida: 0,
-            current_buffer_index: None,
         })
     }
 
-    pub fn add_buffer(&mut self, mut buffer: Buffer) {
-        buffer.id = Some(self.alloc_buffer_id());
+    pub fn add_buffer(&mut self, mut buffer: Buffer) -> usize {
+        let id = self.alloc_buffer_id();
+        buffer.id = Some(id);
 
-        let target_index = self.current_buffer_index.map(|x| x + 1).unwrap_or(0);
+        if let Some(ref path) = buffer.path {
+            if let Ok(metadata) = path.metadata() {
+                self.buffers_ino_map.insert(metadata.ino(), id);
+            }
+        }
 
-        self.buffers.insert(target_index, buffer);
-        self.select_buffer(target_index);
+        self.buffers.insert(id, buffer);
+        self.select_buffer(id);
 
         if let Some(buffer) = self.current_buffer.as_ref() {
             if buffer.syntax_definition.is_none() {
                 let _ = self.update_current_syntax();
             }
         }
+
+        return id;
     }
 
     fn alloc_buffer_id(&mut self) -> usize {
@@ -124,20 +134,35 @@ impl Workspace {
         self.buffer_ida
     }
 
-    fn select_buffer(&mut self, index: usize) -> bool {
+    pub fn get_buffer(&self, id: usize) -> Option<&Buffer> {
+        if let Some(ref buffer) = self.current_buffer {
+            if buffer.id.unwrap() == id {
+                return Some(buffer);
+            }
+        }
+        return self.buffers.get(&id);
+    }
+
+    pub fn get_buffer_with_ino(&self, ino: u64) -> Option<&Buffer> {
+        if let Some(id) = self.buffers_ino_map.get(&ino) {
+            return self.get_buffer(*id);
+        }
+        None
+    }
+
+    pub fn select_buffer(&mut self, id: usize) -> bool {
         // 将当前buffer放回
-        if let Some(buffer) = self.current_buffer.as_mut() {
-            mem::swap(
-                buffer,
-                &mut self.buffers[self.current_buffer_index.unwrap()],
-            );
+        if let Some(buffer) = self.current_buffer.take() {
+            if buffer.id.unwrap() == id {
+                self.current_buffer = Some(buffer);
+                return true;
+            }
+            self.buffers.insert(buffer.id.unwrap(), buffer);
         }
 
         // 选择新buffer
-        if let Some(buffer) = self.buffers.get_mut(index) {
-            self.current_buffer = Some(mem::take(buffer));
-            self.current_buffer_index.replace(index);
-
+        if let Some(buffer) = self.buffers.remove(&id) {
+            self.current_buffer = Some(buffer);
             return true;
         }
 

@@ -97,6 +97,7 @@ impl<'a> Presenter<'a> {
             };
 
             let len = content.len();
+            warn!("line {line}, offset {offset}, content {content}");
             self.print(&Position { line, offset }, data.style, data.color, content);
             offset += len;
         }
@@ -110,7 +111,7 @@ impl<'a> Presenter<'a> {
         buffer: &Buffer,
         buffer_data: &'a str,
         syntax_set: &'a SyntaxSet,
-        highlights: Option<&[Range]>,
+        highlights: Option<&'a [(Range, CharStyle, Colors)]>,
         lexeme_mapper: Option<&'a mut dyn LexemeMapper>,
     ) -> Result<()> {
         let scroll_offset = self.view.get_scroll_controller(buffer).line_offset();

@@ -1,7 +1,7 @@
 use crate::utils::position::Position;
 
 /// Range: 左开右闭区间
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct Range {
     start: Position,
     end: Position,

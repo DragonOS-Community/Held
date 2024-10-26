@@ -31,13 +31,13 @@ pub struct CachedCell {
 
 #[derive(Debug)]
 pub struct CachedRenderBuffer {
-    pub cells: Vec<CachedCell>,
+    pub cells: Vec<Option<CachedCell>>,
 }
 
 impl CachedRenderBuffer {
     pub fn new(width: usize, height: usize) -> CachedRenderBuffer {
         CachedRenderBuffer {
-            cells: vec![CachedCell::default(); width * height],
+            cells: vec![None; width * height],
         }
     }
 
@@ -46,14 +46,28 @@ impl CachedRenderBuffer {
         if index < self.cells.len() {
             let cache = &mut self.cells[index];
             let cell_content = String::from_iter(cell.content.chars());
-            let equal = cache.colors == cell.colors
-                && cache.style == cell.style
-                && cache.content == cell_content;
+
+            let equal = if let Some(cache) = cache {
+                let equal = cache.colors == cell.colors
+                    && cache.style == cell.style
+                    && cache.content == cell_content;
+
+                equal
+            } else {
+                false
+            };
 
             if !equal {
-                cache.colors = cell.colors;
-                cache.style = cell.style;
-                cache.content = cell_content;
+                let mut cache_cell = CachedCell::default();
+                let content_len = cell_content.len();
+                cache_cell.colors = cell.colors;
+                cache_cell.style = cell.style;
+                cache_cell.content = cell_content;
+                for i in (index + 1)..(index + content_len) {
+                    self.cells[i] = None
+                }
+
+                self.cells[index] = Some(cache_cell);
             }
 
             return equal;

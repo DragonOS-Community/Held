@@ -1,26 +1,21 @@
 use crate::{
     errors::*,
     modules::input::{InputLoader, InputMapper},
+    plugin::system::PluginSystem,
 };
 use crossterm::{event::Event, terminal::disable_raw_mode};
 use held_core::plugin::Plugin;
-use mode::{error::ErrorRenderer, ModeData, ModeKey, ModeRenderer, ModeRouter};
+use mode::{
+    error::ErrorRenderer, workspace::WorkspaceModeData, ModeData, ModeKey, ModeRenderer, ModeRouter,
+};
 use smallvec::SmallVec;
 use state::ApplicationStateData;
 
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    io::{self},
-    mem,
-    rc::Rc,
-    sync::Arc,
-};
+use std::{cell::RefCell, collections::HashMap, mem, rc::Rc, sync::Arc};
 
 use crate::{
     config::appconfig::AppSetting,
     modules::perferences::{Perferences, PerferencesManager},
-    plugin::system::PluginSystem,
     utils::{file::FileManager, ui::uicore::Ui},
     view::monitor::Monitor,
     workspace::Workspace,
@@ -91,11 +86,11 @@ impl Application {
         })
     }
 
-    fn init(&mut self) -> io::Result<()> {
+    fn init(&mut self) -> Result<()> {
         // Ui::init_ui()?;
         // PluginSystem::init_system();
         // self.monitor.terminal.clear().unwrap();
-        self.init_modes();
+        self.init_modes()?;
         self.plugin_system.borrow().init();
         // if !self.bak {
         //     self.ui.start_page_ui()?;
@@ -104,12 +99,21 @@ impl Application {
         Ok(())
     }
 
-    fn init_modes(&mut self) {
+    fn init_modes(&mut self) -> Result<()> {
         self.mode_history.insert(ModeKey::Normal, ModeData::Normal);
         self.mode_history.insert(ModeKey::Insert, ModeData::Insert);
         self.mode_history
             .insert(ModeKey::Error, ModeData::Error(Error::default()));
         self.mode_history.insert(ModeKey::Exit, ModeData::Exit);
+        self.mode_history.insert(
+            ModeKey::Workspace,
+            ModeData::Workspace(WorkspaceModeData::new(
+                &mut self.workspace,
+                &mut self.monitor,
+            )?),
+        );
+
+        Ok(())
     }
 
     pub fn run(&mut self) -> Result<()> {

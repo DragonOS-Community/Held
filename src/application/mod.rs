@@ -6,8 +6,7 @@ use crate::{
 use crossterm::{event::Event, terminal::disable_raw_mode};
 use held_core::plugin::Plugin;
 use mode::{
-    error::ErrorRenderer, workspace::WorkspaceModeData, ModeData, ModeKey,
-    ModeRenderer, ModeRouter,
+    error::ErrorRenderer, workspace::WorkspaceModeData, ModeData, ModeKey, ModeRenderer, ModeRouter,
 };
 use smallvec::SmallVec;
 use state::ApplicationStateData;

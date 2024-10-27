@@ -44,3 +44,24 @@ pub fn insert_tab(app: &mut Application) -> Result<()> {
     }
     Ok(())
 }
+
+pub fn redo(app: &mut Application) -> Result<()> {
+    if let Some(ref mut buffer) = app.workspace.current_buffer {
+        buffer.redo();
+    }
+    Ok(())
+}
+
+pub fn save_file(app: &mut Application) -> Result<()> {
+    if let Some(ref mut buffer) = app.workspace.current_buffer {
+        buffer.save()?;
+    }
+    Ok(())
+}
+
+pub fn undo(app: &mut Application) -> Result<()> {
+    if let Some(ref mut buffer) = app.workspace.current_buffer {
+        buffer.undo();
+    }
+    Ok(())
+}

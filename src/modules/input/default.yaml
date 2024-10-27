@@ -21,6 +21,13 @@ normal:
   shift-T: monitor::scroll_to_first_line
   shift-B: monitor::scroll_to_last_line
   shift-G: normal::move_to_target_line
+  shift-O: 
+    - cursor::move_to_start_of_line
+    - buffer::new_line
+  o: 
+    - cursor::move_to_end_of_line
+    - buffer::new_line
+    - cursor::move_down
   j: normal::move_down_n
   k: normal::move_up_n
   h: normal::move_left_n
@@ -28,7 +35,11 @@ normal:
   d: app::to_delete_mode
   w: app::to_workspace_mode
   n: normal::move_to_next_words
-  num: normal::handle_num
+  b: normal::move_to_prev_words
+  e: normal::move_to_next_words_end
+  u: buffer::undo
+  ctrl-r: buffer::redo
+  num: normal::count_cmd
 insert:
   escape: app::to_normal_mode
   left: cursor::move_left
@@ -36,8 +47,8 @@ insert:
   up: cursor::move_up
   down: cursor::move_down
   ctrl-c: app::exit
-  ctrl-s: workspace::save_file
-  ctrl-z: workspace::undo
+  ctrl-s: buffer::save_file
+  ctrl-z: buffer::undo
   enter: 
     - buffer::new_line
     - cursor::move_down
@@ -58,4 +69,7 @@ delete:
   w: 
     - delete::delete_words
     - app::to_normal_mode
-  num: delete::handle_num
+  d: 
+    - delete::delete_lines
+    - cursor::move_to_start_of_line
+    - app::to_normal_mode

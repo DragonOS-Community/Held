@@ -37,5 +37,3 @@ impl ModeRenderer for NormalRenderer {
         Ok(())
     }
 }
-
-

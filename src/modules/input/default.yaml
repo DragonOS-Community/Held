@@ -25,11 +25,10 @@ normal:
   k: normal::move_up_n
   h: normal::move_left_n
   l: normal::move_right_n
-  d: 
-    - normal::transition
-    - normal::delete_some
+  d: app::to_delete_mode
   w: app::to_workspace_mode
-  _: normal::transition
+  n: normal::move_to_next_words
+  num: normal::handle_num
 insert:
   escape: app::to_normal_mode
   left: cursor::move_left
@@ -53,3 +52,10 @@ workspace:
   enter: workspace::enter
   escape: workspace::to_normal_mode
   ctrl-c: app::exit
+delete:
+  ctrl-c: app::exit
+  escape: app::to_normal_mode
+  w: 
+    - delete::delete_words
+    - app::to_normal_mode
+  num: delete::handle_num

@@ -136,6 +136,10 @@ impl Buffer {
         self.data.borrow().read(range)
     }
 
+    pub fn read_rest(&self, position: &Position) -> Option<String> {
+        self.data.borrow().read_rest(position)
+    }
+
     pub fn search(&self, needle: &str) -> Vec<Position> {
         let mut results = Vec::new();
 

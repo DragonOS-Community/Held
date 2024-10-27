@@ -1,13 +1,15 @@
 use std::collections::HashMap;
+use std::sync::RwLock;
 
 use crate::errors::*;
 use crate::{view::monitor::Monitor, workspace::Workspace};
-use crossterm::event::KeyEvent;
+use delete::DeleteRenderer;
 use error::ErrorRenderer;
 use error_chain::bail;
 use insert::InsertRenderer;
+use lazy_static::lazy_static;
 use linked_hash_map::LinkedHashMap;
-use normal::{NormalRenderer, NormalState};
+use normal::NormalRenderer;
 use smallvec::SmallVec;
 use strum::EnumIter;
 use workspace::{WorkspaceModeData, WorkspaceRender};
@@ -16,18 +18,21 @@ use yaml_rust::Yaml;
 use super::handler::handle_map;
 use super::Application;
 
+pub mod motion;
+
+pub mod delete;
 pub mod error;
 mod insert;
 pub mod normal;
 pub mod workspace;
 
 pub enum ModeData {
-    Normal(NormalState),
+    Normal,
     Error(Error),
     Exit,
     Insert,
     Workspace(WorkspaceModeData),
-    // Other(OtherData)
+    Delete, // Other(OtherData)
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, EnumIter)]
@@ -37,6 +42,7 @@ pub enum ModeKey {
     Exit,
     Insert,
     Workspace,
+    Delete,
 }
 
 impl ModeKey {
@@ -45,6 +51,7 @@ impl ModeKey {
             ModeKey::Normal => Some("normal".into()),
             ModeKey::Insert => Some("insert".into()),
             ModeKey::Workspace => Some("workspace".into()),
+            ModeKey::Delete => Some("delete".into()),
             _ => None,
         }
     }
@@ -137,16 +144,16 @@ pub struct ModeRouter;
 impl ModeRenderer for ModeRouter {
     fn render(workspace: &mut Workspace, monitor: &mut Monitor, mode: &mut ModeData) -> Result<()> {
         match mode {
-            ModeData::Normal(_) => NormalRenderer::render(workspace, monitor, mode),
+            ModeData::Normal => NormalRenderer::render(workspace, monitor, mode),
             ModeData::Error(_) => ErrorRenderer::render(workspace, monitor, mode),
             ModeData::Insert => InsertRenderer::render(workspace, monitor, mode),
             ModeData::Workspace(_) => WorkspaceRender::render(workspace, monitor, mode),
             ModeData::Exit => todo!(),
+            ModeData::Delete => DeleteRenderer::render(workspace, monitor, mode),
         }
     }
 }
 
-pub trait ModeState {
-    fn transition(&mut self, key: &KeyEvent) -> Result<()>;
-    fn reset(&mut self);
+lazy_static! {
+    pub static ref CMD_COUNTER: RwLock<usize> = RwLock::new(0);
 }

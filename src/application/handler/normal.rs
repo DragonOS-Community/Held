@@ -1,16 +1,20 @@
+use crossterm::event::KeyCode;
 use held_core::utils::position::Position;
-use held_core::utils::range::Range;
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::application::mode::normal::*;
-use crate::application::mode::{ModeData, ModeState};
+use crate::application::mode::motion::locate_next_words_begin;
+use crate::application::mode::CMD_COUNTER;
 use crate::application::Application;
 use crate::errors::*;
 
-pub fn transition(app: &mut Application) -> Result<()> {
-    if let ModeData::Normal(normal_state) = &mut app.mode {
-        if let Some(key) = app.monitor.last_key {
-            normal_state.transition(&key)?;
+pub fn handle_num(app: &mut Application) -> Result<()> {
+    if let Some(key) = app.monitor.last_key {
+        if let KeyCode::Char(ch) = key.code {
+            if let Some(digit) = ch.to_digit(10) {
+                let mut count = CMD_COUNTER.write().unwrap();
+                *count *= 10;
+                *count += digit as usize;
+            }
         }
     }
     Ok(())
@@ -19,136 +23,113 @@ pub fn transition(app: &mut Application) -> Result<()> {
 // 可以指定执行次数的命令，数字必须先于命令字符；而命令字符可以在配置文件指定
 
 pub fn move_down_n(app: &mut Application) -> Result<()> {
-    if let ModeData::Normal(normal_state) = &mut app.mode {
-        let count = normal_state.count.max(1);
-        if let Some(buffer) = &mut app.workspace.current_buffer {
-            for _ in 0..count.min(buffer.line_count() - buffer.cursor.line) {
-                buffer.cursor.move_down();
-            }
-            app.monitor.scroll_to_cursor(buffer).unwrap();
-            normal_state.reset();
+    let count = CMD_COUNTER.read().unwrap().clone().max(1);
+    if let Some(buffer) = &mut app.workspace.current_buffer {
+        for _ in 0..count.min(buffer.line_count() - buffer.cursor.line) {
+            buffer.cursor.move_down();
         }
+        app.monitor.scroll_to_cursor(buffer).unwrap();
+        reset(app)?;
     }
     Ok(())
 }
 
 pub fn move_up_n(app: &mut Application) -> Result<()> {
-    if let ModeData::Normal(normal_state) = &mut app.mode {
-        let count = normal_state.count.max(1);
-        if let Some(buffer) = &mut app.workspace.current_buffer {
-            for _ in 0..count.min(buffer.cursor.line) {
-                buffer.cursor.move_up();
-            }
-            app.monitor.scroll_to_cursor(buffer).unwrap();
-            normal_state.reset();
+    let count = CMD_COUNTER.read().unwrap().max(1);
+    if let Some(buffer) = &mut app.workspace.current_buffer {
+        for _ in 0..count.min(buffer.cursor.line) {
+            buffer.cursor.move_up();
         }
-    }
-    Ok(())
-}
-
-pub fn delete_some(app: &mut Application) -> Result<()> {
-    if let ModeData::Normal(normal_state) = &mut app.mode {
-        let count = normal_state.count.max(1);
-        if let Some(buffer) = &mut app.workspace.current_buffer {
-            match normal_state.buf_op_arg {
-                Some(BufOpArg::Line) => {
-                    let line = buffer.cursor.line;
-                    buffer.delete_range(Range::new(
-                        Position::new(line, 0),
-                        Position::new((line + count).min(buffer.line_count()), 0),
-                    ));
-                    normal_state.reset();
-                }
-                Some(BufOpArg::Word) => {
-                    todo!()
-                }
-                Some(BufOpArg::WordEnd) => {
-                    todo!()
-                }
-                Some(BufOpArg::WordBegin) => {
-                    todo!()
-                }
-                Some(BufOpArg::Block) => {
-                    todo!()
-                }
-                _ => {}
-            }
-        }
+        app.monitor.scroll_to_cursor(buffer).unwrap();
+        reset(app)?;
     }
     Ok(())
 }
 
 pub fn move_to_target_line(app: &mut Application) -> Result<()> {
-    if let ModeData::Normal(normal_state) = &mut app.mode {
-        if let Some(buffer) = &mut app.workspace.current_buffer {
-            if normal_state.count > 0 {
-                let target_line = normal_state.count.min(buffer.line_count());
-                let offset = buffer.cursor.offset;
-                if !buffer
+    if let Some(buffer) = &mut app.workspace.current_buffer {
+        let count = CMD_COUNTER.read().unwrap().clone();
+        if count > 0 {
+            let target_line = count.min(buffer.line_count());
+            let offset = buffer.cursor.offset;
+            if !buffer
+                .cursor
+                .move_to(Position::new(target_line - 1, offset))
+            {
+                let target_offset = buffer
+                    .data()
+                    .lines()
+                    .nth(target_line - 1)
+                    .unwrap()
+                    .graphemes(true)
+                    .count();
+                buffer
                     .cursor
-                    .move_to(Position::new(target_line - 1, offset))
-                {
-                    let target_offset = buffer
-                        .data()
-                        .lines()
-                        .nth(target_line - 1)
-                        .unwrap()
-                        .graphemes(true)
-                        .count();
-                    buffer
-                        .cursor
-                        .move_to(Position::new(target_line - 1, target_offset));
-                }
+                    .move_to(Position::new(target_line - 1, target_offset));
             }
-            app.monitor.scroll_to_cursor(buffer).unwrap();
-            normal_state.reset();
         }
+        app.monitor.scroll_to_cursor(buffer).unwrap();
+        reset(app)?;
     }
     Ok(())
 }
 
 pub fn move_left_n(app: &mut Application) -> Result<()> {
-    if let ModeData::Normal(normal_state) = &mut app.mode {
-        let mut count = normal_state.count.max(1);
-        if let Some(buffer) = &mut app.workspace.current_buffer {
-            let offset = buffer.cursor.offset;
-            count = count.min(offset);
-            for _ in 0..count {
-                buffer.cursor.move_left();
-            }
-            app.monitor.scroll_to_cursor(buffer)?;
-            normal_state.reset();
+    let mut count = CMD_COUNTER.read().unwrap().clone().max(1);
+    if let Some(buffer) = &mut app.workspace.current_buffer {
+        let offset = buffer.cursor.offset;
+        count = count.min(offset);
+        for _ in 0..count {
+            buffer.cursor.move_left();
         }
+        app.monitor.scroll_to_cursor(buffer)?;
+        reset(app)?;
     }
     Ok(())
 }
 
 pub fn move_right_n(app: &mut Application) -> Result<()> {
-    if let ModeData::Normal(normal_state) = &mut app.mode {
-        let mut count = normal_state.count.max(1);
-        if let Some(buffer) = &mut app.workspace.current_buffer {
-            let max_offset = buffer
-                .data()
-                .lines()
-                .nth(buffer.cursor.line)
-                .unwrap()
-                .graphemes(true)
-                .count();
-            let offset = buffer.cursor.offset;
-            count = count.min(max_offset - offset);
-            for _ in 0..count {
-                buffer.cursor.move_right();
-            }
-            app.monitor.scroll_to_cursor(buffer)?;
-            normal_state.reset();
+    let mut count = CMD_COUNTER.read().unwrap().clone().max(1);
+    if let Some(buffer) = &mut app.workspace.current_buffer {
+        let max_offset = buffer
+            .data()
+            .lines()
+            .nth(buffer.cursor.line)
+            .unwrap()
+            .graphemes(true)
+            .count();
+        let offset = buffer.cursor.offset;
+        count = count.min(max_offset - offset);
+        for _ in 0..count {
+            buffer.cursor.move_right();
         }
+        app.monitor.scroll_to_cursor(buffer)?;
+        reset(app)?;
     }
     Ok(())
 }
 
 pub fn reset(app: &mut Application) -> Result<()> {
-    if let ModeData::Normal(normal_state) = &mut app.mode {
-        normal_state.reset();
+    let _ = app;
+    *CMD_COUNTER.write().unwrap() = 0;
+    Ok(())
+}
+
+pub fn move_to_next_words(app: &mut Application) -> Result<()> {
+    if let Some(buffer) = &mut app.workspace.current_buffer {
+        let current_pos = buffer.cursor.position;
+        let search_range = if let Some(str) = buffer.read_rest(&current_pos) {
+            str
+        } else {
+            return Ok(());
+        };
+        let count = CMD_COUNTER.read().unwrap().clone();
+        let next_words_pos = locate_next_words_begin(count.max(1), &search_range, &current_pos);
+        if let Some(next_words_pos) = next_words_pos {
+            buffer.cursor.move_to(next_words_pos);
+            app.monitor.scroll_to_cursor(buffer)?;
+        }
+        reset(app)?;
     }
     Ok(())
 }

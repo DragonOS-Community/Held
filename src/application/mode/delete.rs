@@ -5,9 +5,9 @@ use crate::{
     errors::*,
     view::status_data::{buffer_status_data, StatusLineData},
 };
-pub(super) struct NormalRenderer;
+pub(super) struct DeleteRenderer;
 
-impl ModeRenderer for NormalRenderer {
+impl ModeRenderer for DeleteRenderer {
     fn render(
         workspace: &mut crate::workspace::Workspace,
         monitor: &mut crate::view::monitor::Monitor,
@@ -16,12 +16,12 @@ impl ModeRenderer for NormalRenderer {
         let mut presenter = monitor.build_presenter()?;
 
         if let Some(buffer) = &workspace.current_buffer {
-            warn!("normal buffer id: {}", buffer.id.unwrap());
+            warn!("Delete buffer id: {}", buffer.id.unwrap());
             let data = buffer.data();
             presenter.print_buffer(buffer, &data, &workspace.syntax_set, None, None)?;
 
             let mode_name_data = StatusLineData {
-                content: " NORMAL ".to_string(),
+                content: " DELETE ".to_string(),
                 color: Colors::Inverted,
                 style: CharStyle::Bold,
             };
@@ -37,5 +37,3 @@ impl ModeRenderer for NormalRenderer {
         Ok(())
     }
 }
-
-

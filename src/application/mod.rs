@@ -6,9 +6,9 @@ use crate::{
 use crossterm::{event::Event, terminal::disable_raw_mode};
 use held_core::plugin::Plugin;
 use mode::{
-    error::ErrorRenderer, workspace::WorkspaceModeData, ModeData, ModeKey, ModeRenderer, ModeRouter,
+    error::ErrorRenderer, workspace::WorkspaceModeData, ModeData, ModeKey,
+    ModeRenderer, ModeRouter,
 };
-use mode::normal::NormalState;
 use smallvec::SmallVec;
 use state::ApplicationStateData;
 
@@ -78,7 +78,7 @@ impl Application {
             workspace,
             monitor,
             perferences,
-            mode: ModeData::Normal(NormalState::new()),
+            mode: ModeData::Normal,
             mode_key: ModeKey::Normal,
             mode_history: HashMap::new(),
             input_map,
@@ -101,8 +101,7 @@ impl Application {
     }
 
     fn init_modes(&mut self) -> Result<()> {
-        self.mode_history
-            .insert(ModeKey::Normal, ModeData::Normal(NormalState::new()));
+        self.mode_history.insert(ModeKey::Normal, ModeData::Normal);
         self.mode_history.insert(ModeKey::Insert, ModeData::Insert);
         self.mode_history
             .insert(ModeKey::Error, ModeData::Error(Error::default()));
@@ -114,6 +113,7 @@ impl Application {
                 &mut self.monitor,
             )?),
         );
+        self.mode_history.insert(ModeKey::Delete, ModeData::Delete);
 
         Ok(())
     }

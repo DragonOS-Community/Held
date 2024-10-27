@@ -21,3 +21,8 @@ pub fn to_workspace_mode(app: &mut Application) -> Result<()> {
     app.switch_mode(ModeKey::Workspace);
     Ok(())
 }
+
+pub fn to_delete_mode(app: &mut Application) -> Result<()> {
+    app.switch_mode(ModeKey::Delete);
+    Ok(())
+}

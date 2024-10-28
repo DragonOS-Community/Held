@@ -1,13 +1,14 @@
-use crate::errors::*;
-use crate::modules::input::{InputLoader, InputMapper};
-use crate::plugin::system::PluginSystem;
-use crossterm::event::Event;
-use crossterm::terminal::disable_raw_mode;
+use crate::{
+    errors::*,
+    modules::input::{InputLoader, InputMapper},
+    plugin::system::PluginSystem,
+};
+use crossterm::{event::Event, terminal::disable_raw_mode};
 use held_core::plugin::Plugin;
-use mode::command::CommandData;
-use mode::error::ErrorRenderer;
-use mode::workspace::WorkspaceModeData;
-use mode::{ModeData, ModeKey, ModeRenderer, ModeRouter};
+use mode::{
+    command::CommandData, error::ErrorRenderer, workspace::WorkspaceModeData, ModeData, ModeKey,
+    ModeRenderer, ModeRouter,
+};
 use smallvec::SmallVec;
 use state::ApplicationStateData;
 

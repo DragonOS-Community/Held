@@ -75,8 +75,7 @@ impl<'a> Presenter<'a> {
 
     pub fn print_status_line(&mut self, datas: &[StatusLineData]) -> Result<()> {
         let line_width = self.view.terminal.width()?;
-        // 在倒数第二行打印status_line
-        let line = self.view.terminal.height()? - 2;
+        let line = self.view.terminal.height()? - 1;
 
         let count = datas.len();
         let mut offset = 0;
@@ -103,27 +102,6 @@ impl<'a> Presenter<'a> {
             self.print(&Position { line, offset }, data.style, data.color, content);
             offset += len;
         }
-
-        Ok(())
-    }
-
-    // 后续也许要作为一个trait的方法，提供给search和command一起使用(/和:开头)
-    pub fn print_last_line(&mut self, data: &CommandData) -> Result<()> {
-        // slet line_width = self.view.terminal.width()?;
-        // 在倒数第一行打印last_line
-        let line = self.view.terminal.height()? - 1;
-
-        let offset = 0;
-
-        let content = format!(":{:}", data.input);
-        let cursor_position_offset = content.len();
-        self.print(
-            &Position { line, offset },
-            CharStyle::Default,
-            Colors::Default,
-            content,
-        );
-        self.cursor_position = Some(Position::new(line, cursor_position_offset));
 
         Ok(())
     }

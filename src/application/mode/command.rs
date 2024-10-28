@@ -2,6 +2,7 @@ use std::{collections::HashMap, process::CommandArgs};
 
 use super::{ModeData, ModeRenderer};
 use crate::errors::Error;
+use crate::util::position::Position;
 use crate::{
     application::Application,
     view::{
@@ -22,6 +23,7 @@ impl ModeRenderer for CommandRenderer {
         monitor: &mut crate::view::monitor::Monitor,
         mode: &mut super::ModeData,
     ) -> super::Result<()> {
+        let line = monitor.height()? - 1;
         let mut presenter = monitor.build_presenter()?;
 
         if let Some(buffer) = &workspace.current_buffer {
@@ -33,13 +35,23 @@ impl ModeRenderer for CommandRenderer {
                 color: Colors::Inverted,
                 style: CharStyle::Bold,
             };
-            presenter.print_status_line(&[
-                mode_name_data,
-                buffer_status_data(&workspace.current_buffer),
-            ])?;
-            if let ModeData::Command(ref command_data) = mode {
-                presenter.print_last_line(command_data)?;
+
+            let cmd_str = if let ModeData::Command(command_data) = mode {
+                command_data.input.clone()
+            } else {
+                String::new()
             };
+            let command_line_str = ":".to_owned() + &cmd_str;
+            let command_data = StatusLineData {
+                content: command_line_str.clone(),
+                color: Colors::Default,
+                style: CharStyle::Default,
+            };
+
+            presenter.print_status_line(&[mode_name_data, command_data])?;
+
+            let offset = " COMMAND ".len() + command_line_str.len();
+            presenter.set_cursor(Position { line, offset });
 
             presenter.present()?;
         } else {

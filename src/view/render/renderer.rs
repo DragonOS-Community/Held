@@ -177,8 +177,7 @@ impl<'a, 'p> Renderer<'a, 'p> {
     }
 
     fn after_visible(&self) -> bool {
-        // 腾出底下两行
-        self.screen_position.line >= (self.terminal.height().unwrap() - 2)
+        self.screen_position.line >= (self.terminal.height().unwrap() - 1)
     }
 
     fn before_visible(&self) -> bool {

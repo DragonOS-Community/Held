@@ -68,6 +68,10 @@ pub fn commit_and_execute(app: &mut Application) -> Result<()> {
             app::to_normal_mode(app)?;
         }
     }
+    // 匹配完reset
+    if let ModeData::Command(ref mut command_data) = app.mode {
+        command_data.reset();
+    }
     Ok(())
 }
 
@@ -90,5 +94,13 @@ pub fn backspace(app: &mut Application) -> Result<()> {
             command_data.input.remove(command_data.input.len() - 1);
         }
     }
+    Ok(())
+}
+
+pub fn to_normal_mode(app: &mut Application) -> Result<()> {
+    if let ModeData::Command(ref mut command_data) = app.mode {
+        command_data.reset();
+    }
+    app.switch_mode(ModeKey::Normal);
     Ok(())
 }

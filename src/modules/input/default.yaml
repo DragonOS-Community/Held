@@ -25,7 +25,7 @@ insert:
   _: 
     - buffer::insert_char
 command:
-  escape: app::to_normal_mode
+  escape: command::to_normal_mode
   backspace: command::backspace
   enter: command::commit_and_execute
   _:

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::RwLock;
 
 use crate::errors::*;
 use crate::{view::monitor::Monitor, workspace::Workspace};
@@ -7,7 +6,6 @@ use delete::DeleteRenderer;
 use error::ErrorRenderer;
 use error_chain::bail;
 use insert::InsertRenderer;
-use lazy_static::lazy_static;
 use linked_hash_map::LinkedHashMap;
 use normal::NormalRenderer;
 use smallvec::SmallVec;
@@ -152,8 +150,4 @@ impl ModeRenderer for ModeRouter {
             ModeData::Delete => DeleteRenderer::render(workspace, monitor, mode),
         }
     }
-}
-
-lazy_static! {
-    pub static ref CMD_COUNTER: RwLock<usize> = RwLock::new(0);
 }

@@ -45,6 +45,7 @@ pub struct Application {
     >,
     plugin_system: Rc<RefCell<PluginSystem>>,
     pub state_data: ApplicationStateData,
+    pub cmd_counter: usize,
 }
 
 impl Application {
@@ -83,6 +84,7 @@ impl Application {
             input_map,
             plugin_system,
             state_data: ApplicationStateData::default(),
+            cmd_counter: 0,
         })
     }
 
@@ -125,6 +127,7 @@ impl Application {
             self.listen_event()?;
 
             if let ModeKey::Exit = &self.mode_key {
+                disable_raw_mode()?;
                 return Ok(());
             }
         }

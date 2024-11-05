@@ -1,9 +1,9 @@
 use std::{borrow::Borrow, fmt};
 
-use serde_yaml::Index;
+use held_core::utils::position::Position;
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::util::{position::Position, range::Range};
+use held_core::utils::range::Range;
 
 /// GapBuffer 增加减少重分配的buffer
 /// 在一整块buffer中有一段gap(空闲空间)将整块buffer分为两段，以实现插入删除等操作的高效率（减少重分配）
@@ -218,10 +218,9 @@ impl fmt::Display for GapBuffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        buffer::{GapBuffer, Position},
-        util::range::Range,
-    };
+    use held_core::utils::range::Range;
+
+    use crate::buffer::{GapBuffer, Position};
 
     #[test]
     fn move_gap_works() {

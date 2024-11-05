@@ -6,6 +6,7 @@ normal:
   ctrl-c: app::exit
   i: app::to_insert_mode
   backspace: cursor::move_left
+  w: app::to_workspace_mode
   /: app::to_search_mode
 insert:
   escape: app::to_normal_mode
@@ -24,6 +25,12 @@ insert:
   tab: buffer::insert_tab
   _: 
     - buffer::insert_char
+workspace:
+  up: workspace::move_up
+  down: workspace::move_down
+  enter: workspace::enter
+  escape: workspace::to_normal_mode
+  ctrl-c: app::exit
 search:
   /:
   - search::clear 

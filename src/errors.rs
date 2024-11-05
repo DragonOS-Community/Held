@@ -35,5 +35,6 @@ error_chain! {
         ParsingError(syntect::parsing::ParsingError);
         ScopeError(syntect::parsing::ScopeError);
         SyntaxLoadingError(syntect::LoadingError);
+        DlopenError(dlopen2::Error);
     }
 }

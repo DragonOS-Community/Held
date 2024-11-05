@@ -17,6 +17,11 @@ pub fn to_normal_mode(app: &mut Application) -> Result<()> {
     Ok(())
 }
 
+pub fn to_workspace_mode(app: &mut Application) -> Result<()> {
+    app.switch_mode(ModeKey::Workspace);
+    Ok(())
+}
+
 pub fn to_search_mode(app: &mut Application) -> Result<()> {
     app.switch_mode(ModeKey::Search);
     Ok(())

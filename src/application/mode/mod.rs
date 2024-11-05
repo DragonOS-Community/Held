@@ -10,6 +10,7 @@ use normal::NormalRenderer;
 use search::{SearchData, SearchRenderer};
 use smallvec::SmallVec;
 use strum::EnumIter;
+use workspace::{WorkspaceModeData, WorkspaceRender};
 use yaml_rust::Yaml;
 
 use super::handler::handle_map;
@@ -18,14 +19,15 @@ use super::Application;
 pub mod error;
 mod insert;
 mod normal;
+pub mod workspace;
 pub mod search;
 
-#[derive(Debug)]
 pub enum ModeData {
     Normal,
     Error(Error),
     Exit,
     Insert,
+    Workspace(WorkspaceModeData),
     Search(SearchData),
     // Other(OtherData)
 }
@@ -36,6 +38,7 @@ pub enum ModeKey {
     Error,
     Exit,
     Insert,
+    Workspace,
     Search,
 }
 
@@ -44,6 +47,7 @@ impl ModeKey {
         match self {
             ModeKey::Normal => Some("normal".into()),
             ModeKey::Insert => Some("insert".into()),
+            ModeKey::Workspace => Some("workspace".into()),
             ModeKey::Search => Some("search".into()),
             _ => None,
         }
@@ -140,6 +144,7 @@ impl ModeRenderer for ModeRouter {
             ModeData::Normal => NormalRenderer::render(workspace, monitor, mode),
             ModeData::Error(_) => ErrorRenderer::render(workspace, monitor, mode),
             ModeData::Insert => InsertRenderer::render(workspace, monitor, mode),
+            ModeData::Workspace(_) => WorkspaceRender::render(workspace, monitor, mode),
             ModeData::Search(_) => SearchRenderer::render(workspace, monitor, mode),
             ModeData::Exit => todo!(),
         }

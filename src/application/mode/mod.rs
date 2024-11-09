@@ -3,11 +3,13 @@ use std::collections::HashMap;
 use crate::errors::*;
 use crate::{view::monitor::Monitor, workspace::Workspace};
 use command::{CommandData, CommandRenderer};
+use delete::DeleteRenderer;
 use error::ErrorRenderer;
 use error_chain::bail;
 use insert::InsertRenderer;
 use linked_hash_map::LinkedHashMap;
 use normal::NormalRenderer;
+use search::{SearchData, SearchRenderer};
 use smallvec::SmallVec;
 use strum::EnumIter;
 use workspace::{WorkspaceModeData, WorkspaceRender};
@@ -17,10 +19,13 @@ use super::handler::handle_map;
 use super::Application;
 
 pub mod command;
+pub mod motion;
+pub mod delete;
 pub mod error;
 mod insert;
-mod normal;
+pub mod normal;
 pub mod workspace;
+pub mod search;
 
 pub enum ModeData {
     Normal,
@@ -29,7 +34,8 @@ pub enum ModeData {
     Insert,
     Command(CommandData),
     Workspace(WorkspaceModeData),
-    // Other(OtherData)
+    Search(SearchData),
+    Delete, // Other(OtherData)
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, EnumIter)]
@@ -40,6 +46,8 @@ pub enum ModeKey {
     Insert,
     Command,
     Workspace,
+    Search,
+    Delete,
 }
 
 impl ModeKey {
@@ -49,6 +57,8 @@ impl ModeKey {
             ModeKey::Insert => Some("insert".into()),
             ModeKey::Command => Some("command".into()),
             ModeKey::Workspace => Some("workspace".into()),
+            ModeKey::Search => Some("search".into()),
+            ModeKey::Delete => Some("delete".into()),
             _ => None,
         }
     }
@@ -146,7 +156,9 @@ impl ModeRenderer for ModeRouter {
             ModeData::Insert => InsertRenderer::render(workspace, monitor, mode),
             ModeData::Command(_) => CommandRenderer::render(workspace, monitor, mode),
             ModeData::Workspace(_) => WorkspaceRender::render(workspace, monitor, mode),
+            ModeData::Search(_) => SearchRenderer::render(workspace, monitor, mode),
             ModeData::Exit => todo!(),
+            ModeData::Delete => DeleteRenderer::render(workspace, monitor, mode),
         }
     }
 }

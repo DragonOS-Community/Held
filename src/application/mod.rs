@@ -6,8 +6,7 @@ use crate::{
 use crossterm::{event::Event, terminal::disable_raw_mode};
 use held_core::plugin::Plugin;
 use mode::{
-    command::CommandData, error::ErrorRenderer, workspace::WorkspaceModeData, ModeData, ModeKey,
-    ModeRenderer, ModeRouter,
+    command::CommandData, error::ErrorRenderer, workspace::WorkspaceModeData, ModeData, ModeKey, search::SearchData, ModeRenderer, ModeRouter
 };
 use smallvec::SmallVec;
 use state::ApplicationStateData;
@@ -46,6 +45,7 @@ pub struct Application {
     >,
     plugin_system: Rc<RefCell<PluginSystem>>,
     pub state_data: ApplicationStateData,
+    pub cmd_counter: usize,
 }
 
 impl Application {
@@ -84,6 +84,7 @@ impl Application {
             input_map,
             plugin_system,
             state_data: ApplicationStateData::default(),
+            cmd_counter: 0,
         })
     }
 
@@ -115,8 +116,11 @@ impl Application {
                 &mut self.monitor,
             )?),
         );
+        self.mode_history.insert(ModeKey::Delete, ModeData::Delete);
 
         Ok(())
+        self.mode_history
+            .insert(ModeKey::Search, ModeData::Search(SearchData::new()));
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -127,6 +131,7 @@ impl Application {
             self.listen_event()?;
 
             if let ModeKey::Exit = &self.mode_key {
+                disable_raw_mode()?;
                 return Ok(());
             }
         }

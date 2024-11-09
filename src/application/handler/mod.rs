@@ -6,8 +6,11 @@ mod app;
 mod buffer;
 mod command;
 mod cursor;
+mod delete;
 mod insert;
 mod monitor;
+mod search;
+mod normal;
 mod workspace;
 
 pub fn handle_map() -> HashMap<&'static str, fn(&mut Application) -> Result<()>> {

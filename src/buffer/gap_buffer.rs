@@ -86,6 +86,25 @@ impl GapBuffer {
         Some(data)
     }
 
+    pub fn read_rest(&self, position: &Position) -> Option<String> {
+        let offset = match self.find_offset(position) {
+            Some(offset) => offset,
+            None => return None,
+        };
+
+        let data = if offset < self.gap_start {
+            let mut data = String::from_utf8_lossy(&self.data[offset..self.gap_start]).into_owned();
+            data.push_str(
+                String::from_utf8_lossy(&self.data[self.gap_start + self.gap_length..]).borrow(),
+            );
+            data
+        } else {
+            String::from_utf8_lossy(&self.data[offset..]).into_owned()
+        };
+
+        Some(data)
+    }
+
     // | data | gap |   data    |
     pub fn delete(&mut self, range: &Range) {
         let start_offset = match self.find_offset(&range.start()) {

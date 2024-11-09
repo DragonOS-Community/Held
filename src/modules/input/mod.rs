@@ -128,7 +128,13 @@ impl InputMapper {
                 crossterm::event::KeyCode::Delete => "delete".into(),
                 crossterm::event::KeyCode::Insert => "insert".into(),
                 crossterm::event::KeyCode::F(f) => format!("f{f}"),
-                crossterm::event::KeyCode::Char(c) => c.into(),
+                crossterm::event::KeyCode::Char(c) => {
+                    if c.is_digit(10) {
+                        "num".to_string()
+                    } else {
+                        c.into()
+                    }
+                }
                 crossterm::event::KeyCode::Null => "".into(),
                 crossterm::event::KeyCode::Esc => "escape".into(),
                 crossterm::event::KeyCode::CapsLock => "caps_lock".into(),

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::errors::*;
 use crate::{view::monitor::Monitor, workspace::Workspace};
+use command::{CommandData, CommandRenderer};
 use delete::DeleteRenderer;
 use error::ErrorRenderer;
 use error_chain::bail;
@@ -17,8 +18,8 @@ use yaml_rust::Yaml;
 use super::handler::handle_map;
 use super::Application;
 
+pub mod command;
 pub mod motion;
-
 pub mod delete;
 pub mod error;
 mod insert;
@@ -31,6 +32,7 @@ pub enum ModeData {
     Error(Error),
     Exit,
     Insert,
+    Command(CommandData),
     Workspace(WorkspaceModeData),
     Search(SearchData),
     Delete, // Other(OtherData)
@@ -42,6 +44,7 @@ pub enum ModeKey {
     Error,
     Exit,
     Insert,
+    Command,
     Workspace,
     Search,
     Delete,
@@ -52,6 +55,7 @@ impl ModeKey {
         match self {
             ModeKey::Normal => Some("normal".into()),
             ModeKey::Insert => Some("insert".into()),
+            ModeKey::Command => Some("command".into()),
             ModeKey::Workspace => Some("workspace".into()),
             ModeKey::Search => Some("search".into()),
             ModeKey::Delete => Some("delete".into()),
@@ -150,6 +154,7 @@ impl ModeRenderer for ModeRouter {
             ModeData::Normal => NormalRenderer::render(workspace, monitor, mode),
             ModeData::Error(_) => ErrorRenderer::render(workspace, monitor, mode),
             ModeData::Insert => InsertRenderer::render(workspace, monitor, mode),
+            ModeData::Command(_) => CommandRenderer::render(workspace, monitor, mode),
             ModeData::Workspace(_) => WorkspaceRender::render(workspace, monitor, mode),
             ModeData::Search(_) => SearchRenderer::render(workspace, monitor, mode),
             ModeData::Exit => todo!(),

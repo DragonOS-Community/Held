@@ -5,6 +5,7 @@ normal:
   down: cursor::move_down
   ctrl-c: app::exit
   i: app::to_insert_mode
+  ':': app::to_command_mode
   a: 
     - app::to_insert_mode
     - cursor::move_right
@@ -58,6 +59,13 @@ insert:
   tab: buffer::insert_tab
   _: 
     - buffer::insert_char
+command:
+  escape: command::to_normal_mode
+  backspace: command::backspace
+  enter: command::commit_and_execute
+  _:
+    - command::insert_command
+
 workspace:
   up: workspace::move_up
   down: workspace::move_down

@@ -6,7 +6,7 @@ use crate::{
 use crossterm::{event::Event, terminal::disable_raw_mode};
 use held_core::plugin::Plugin;
 use mode::{
-    error::ErrorRenderer, workspace::WorkspaceModeData, search::SearchData, ModeData, ModeKey, ModeRenderer, ModeRouter,
+    command::CommandData, error::ErrorRenderer, workspace::WorkspaceModeData, ModeData, ModeKey, search::SearchData, ModeRenderer, ModeRouter
 };
 use smallvec::SmallVec;
 use state::ApplicationStateData;
@@ -104,6 +104,8 @@ impl Application {
     fn init_modes(&mut self) -> Result<()> {
         self.mode_history.insert(ModeKey::Normal, ModeData::Normal);
         self.mode_history.insert(ModeKey::Insert, ModeData::Insert);
+        self.mode_history
+            .insert(ModeKey::Command, ModeData::Command(CommandData::new()));
         self.mode_history
             .insert(ModeKey::Error, ModeData::Error(Error::default()));
         self.mode_history.insert(ModeKey::Exit, ModeData::Exit);

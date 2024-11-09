@@ -8,6 +8,7 @@ mod cursor;
 mod delete;
 mod insert;
 mod monitor;
+mod search;
 mod normal;
 mod workspace;
 

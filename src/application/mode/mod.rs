@@ -8,6 +8,7 @@ use error_chain::bail;
 use insert::InsertRenderer;
 use linked_hash_map::LinkedHashMap;
 use normal::NormalRenderer;
+use search::{SearchData, SearchRenderer};
 use smallvec::SmallVec;
 use strum::EnumIter;
 use workspace::{WorkspaceModeData, WorkspaceRender};
@@ -23,6 +24,7 @@ pub mod error;
 mod insert;
 pub mod normal;
 pub mod workspace;
+pub mod search;
 
 pub enum ModeData {
     Normal,
@@ -30,6 +32,7 @@ pub enum ModeData {
     Exit,
     Insert,
     Workspace(WorkspaceModeData),
+    Search(SearchData),
     Delete, // Other(OtherData)
 }
 
@@ -40,6 +43,7 @@ pub enum ModeKey {
     Exit,
     Insert,
     Workspace,
+    Search,
     Delete,
 }
 
@@ -49,6 +53,7 @@ impl ModeKey {
             ModeKey::Normal => Some("normal".into()),
             ModeKey::Insert => Some("insert".into()),
             ModeKey::Workspace => Some("workspace".into()),
+            ModeKey::Search => Some("search".into()),
             ModeKey::Delete => Some("delete".into()),
             _ => None,
         }
@@ -146,6 +151,7 @@ impl ModeRenderer for ModeRouter {
             ModeData::Error(_) => ErrorRenderer::render(workspace, monitor, mode),
             ModeData::Insert => InsertRenderer::render(workspace, monitor, mode),
             ModeData::Workspace(_) => WorkspaceRender::render(workspace, monitor, mode),
+            ModeData::Search(_) => SearchRenderer::render(workspace, monitor, mode),
             ModeData::Exit => todo!(),
             ModeData::Delete => DeleteRenderer::render(workspace, monitor, mode),
         }

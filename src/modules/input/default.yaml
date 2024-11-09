@@ -34,6 +34,7 @@ normal:
   l: normal::move_right_n
   d: app::to_delete_mode
   w: app::to_workspace_mode
+  /: app::to_search_mode
   n: normal::move_to_next_words
   b: normal::move_to_prev_words
   e: normal::move_to_next_words_end
@@ -63,6 +64,19 @@ workspace:
   enter: workspace::enter
   escape: workspace::to_normal_mode
   ctrl-c: app::exit
+search:
+  /:
+  - search::clear 
+  - app::to_search_mode
+  backspace: search::backspace
+  escape: 
+  - search::clear
+  - app::to_normal_mode
+  enter: search::exec_search
+  up: search::last_result
+  down: search::next_result
+  ctrl-c: app::exit
+  _:  search::input_search_data
 delete:
   ctrl-c: app::exit
   escape: app::to_normal_mode

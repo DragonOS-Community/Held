@@ -39,3 +39,10 @@ pub fn move_to_start_of_line(app: &mut Application) -> Result<()> {
     }
     Ok(())
 }
+
+pub fn move_to_end_of_line(app: &mut Application) -> Result<()> {
+    if let Some(buffer) = &mut app.workspace.current_buffer {
+        buffer.cursor.move_to_end_of_line();
+    }
+    Ok(())
+}

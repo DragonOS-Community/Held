@@ -2,20 +2,6 @@ use crate::application::mode::{ModeData, ModeKey};
 use crate::application::Application;
 use crate::errors::*;
 
-pub fn save_file(app: &mut Application) -> Result<()> {
-    if let Some(ref mut buffer) = app.workspace.current_buffer {
-        buffer.save()?;
-    }
-    Ok(())
-}
-
-pub fn undo(app: &mut Application) -> Result<()> {
-    if let Some(ref mut buffer) = app.workspace.current_buffer {
-        buffer.undo();
-    }
-    Ok(())
-}
-
 pub fn to_normal_mode(app: &mut Application) -> Result<()> {
     if let ModeData::Workspace(ref mode) = app.mode {
         app.workspace.select_buffer(mode.prev_buffer_id);

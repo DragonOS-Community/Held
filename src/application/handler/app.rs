@@ -40,12 +40,12 @@ pub fn to_workspace_mode(app: &mut Application) -> Result<()> {
 
 pub fn to_command_mode(app: &mut Application) -> Result<()> {
     app.switch_mode(ModeKey::Command);
-    OK(())
+    Ok(())
 }
 
 pub fn to_search_mode(app: &mut Application) -> Result<()> {
     app.switch_mode(ModeKey::Search);
-    OK(())
+    Ok(())
 }
 
 pub fn to_delete_mode(app: &mut Application) -> Result<()> {

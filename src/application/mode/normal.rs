@@ -1,11 +1,9 @@
+use held_core::view::{colors::Colors, style::CharStyle};
+
 use super::ModeRenderer;
 use crate::{
     errors::*,
-    view::{
-        colors::colors::Colors,
-        status_data::{buffer_status_data, StatusLineData},
-        style::CharStyle,
-    },
+    view::status_data::{buffer_status_data, StatusLineData},
 };
 pub(super) struct NormalRenderer;
 
@@ -18,6 +16,7 @@ impl ModeRenderer for NormalRenderer {
         let mut presenter = monitor.build_presenter()?;
 
         if let Some(buffer) = &workspace.current_buffer {
+            warn!("normal buffer id: {}", buffer.id.unwrap());
             let data = buffer.data();
             presenter.print_buffer(buffer, &data, &workspace.syntax_set, None, None)?;
 

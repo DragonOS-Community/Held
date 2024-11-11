@@ -1,7 +1,8 @@
 use crossterm::event::KeyCode;
+use held_core::utils::position::Position;
 
+use crate::application::Application;
 use crate::errors::*;
-use crate::{application::Application, util::position::Position};
 
 use super::cursor;
 
@@ -54,6 +55,27 @@ pub fn insert_tab(app: &mut Application) -> Result<()> {
                 offset: buffer.cursor.offset + width,
             });
         }
+    }
+    Ok(())
+}
+
+pub fn redo(app: &mut Application) -> Result<()> {
+    if let Some(ref mut buffer) = app.workspace.current_buffer {
+        buffer.redo();
+    }
+    Ok(())
+}
+
+pub fn save_file(app: &mut Application) -> Result<()> {
+    if let Some(ref mut buffer) = app.workspace.current_buffer {
+        buffer.save()?;
+    }
+    Ok(())
+}
+
+pub fn undo(app: &mut Application) -> Result<()> {
+    if let Some(ref mut buffer) = app.workspace.current_buffer {
+        buffer.undo();
     }
     Ok(())
 }

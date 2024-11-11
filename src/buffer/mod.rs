@@ -7,13 +7,13 @@ use std::rc::Rc;
 use std::{fs, io};
 
 use cursor::Cursor;
+use held_core::utils::position::Position;
 use operation::history::History;
 use operation::{Operation, OperationGroup};
 use syntect::parsing::SyntaxReference;
 
 use crate::errors::Error;
-use crate::util::position::Position;
-use crate::util::range::Range;
+use held_core::utils::range::Range;
 
 // Published API
 pub use self::gap_buffer::GapBuffer;
@@ -134,6 +134,10 @@ impl Buffer {
 
     pub fn read(&self, range: &Range) -> Option<String> {
         self.data.borrow().read(range)
+    }
+
+    pub fn read_rest(&self, position: &Position) -> Option<String> {
+        self.data.borrow().read_rest(position)
     }
 
     pub fn search(&self, needle: &str) -> Vec<Position> {

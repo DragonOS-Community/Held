@@ -1,9 +1,9 @@
 use std::{borrow::Borrow, fmt};
 
-use serde_yaml::Index;
+use held_core::utils::position::Position;
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::util::{position::Position, range::Range};
+use held_core::utils::range::Range;
 
 /// GapBuffer 增加减少重分配的buffer
 /// 在一整块buffer中有一段gap(空闲空间)将整块buffer分为两段，以实现插入删除等操作的高效率（减少重分配）
@@ -81,6 +81,25 @@ impl GapBuffer {
             data
         } else {
             String::from_utf8_lossy(&self.data[start_offset..end_offset]).into_owned()
+        };
+
+        Some(data)
+    }
+
+    pub fn read_rest(&self, position: &Position) -> Option<String> {
+        let offset = match self.find_offset(position) {
+            Some(offset) => offset,
+            None => return None,
+        };
+
+        let data = if offset < self.gap_start {
+            let mut data = String::from_utf8_lossy(&self.data[offset..self.gap_start]).into_owned();
+            data.push_str(
+                String::from_utf8_lossy(&self.data[self.gap_start + self.gap_length..]).borrow(),
+            );
+            data
+        } else {
+            String::from_utf8_lossy(&self.data[offset..]).into_owned()
         };
 
         Some(data)
@@ -218,10 +237,9 @@ impl fmt::Display for GapBuffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        buffer::{GapBuffer, Position},
-        util::range::Range,
-    };
+    use held_core::utils::range::Range;
+
+    use crate::buffer::{GapBuffer, Position};
 
     #[test]
     fn move_gap_works() {

@@ -32,7 +32,3 @@ pub fn enter(app: &mut Application) -> Result<()> {
     }
     Ok(())
 }
-
-pub fn save_file(_app: &mut Application) -> Result<()> {
-    todo!();
-}

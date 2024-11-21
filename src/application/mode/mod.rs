@@ -19,13 +19,13 @@ use super::handler::handle_map;
 use super::Application;
 
 pub mod command;
-pub mod motion;
 pub mod delete;
 pub mod error;
 mod insert;
+pub mod motion;
 pub mod normal;
-pub mod workspace;
 pub mod search;
+pub mod workspace;
 
 pub enum ModeData {
     Normal,

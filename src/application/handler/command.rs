@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crossterm::event::KeyCode;
 use smallvec::SmallVec;
 
-use crate::application::handler::{app, workspace};
+use crate::application::handler::{app, buffer};
 use crate::application::mode::{ModeData, ModeKey};
 use crate::application::Application;
 use crate::errors::*;
@@ -28,13 +28,13 @@ lazy_static! {
         cmd_map.insert(
             "w".to_string(),
             SmallVec::from_vec(vec![
-                workspace::save_file as fn(&mut Application) -> Result<()>,
+                buffer::save_file as fn(&mut Application) -> Result<()>,
             ]),
         );
         cmd_map.insert(
             "wq".to_string(),
             SmallVec::from_vec(vec![
-                workspace::save_file as fn(&mut Application) -> Result<()>,
+                buffer::save_file as fn(&mut Application) -> Result<()>,
                 app::exit as fn(&mut Application) -> Result<()>,
             ]),
         );

@@ -82,6 +82,33 @@ impl Buffer {
             None => self.history.add(Box::new(op)),
         };
     }
+
+    pub fn replace_on_cursor<T: Into<String> + AsRef<str>>(&mut self, content: T) {
+        let old_content = self.data();
+        let offset = self.cursor.offset;
+        let line_number = self.cursor.line;
+        let lines: Vec<&str> = old_content.lines().collect();
+        let mut new_content = old_content.clone();
+
+        // 计算目标行的起始和结束位置
+        let mut line_start = 0;
+        let mut line_count = 0;
+
+        for (_, line) in lines.iter().enumerate() {
+            if line_count == line_number {
+                let line_end = line_start + offset;
+                if new_content.remove(line_end) == '\n' {
+                    new_content.insert(line_end, '\n');
+                }
+                new_content.insert_str(line_end, &content.into());
+                break;
+            }
+            line_start += line.len() + 1; // +1 是为了加上换行符的长度
+            line_count += 1;
+        }
+
+        self.replace(new_content);
+    }
 }
 
 fn replace_content(content: String, buffer: &mut Buffer) {

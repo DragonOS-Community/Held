@@ -108,6 +108,8 @@ impl Application {
         self.mode_history
             .insert(ModeKey::Command, ModeData::Command(CommandData::new()));
         self.mode_history
+            .insert(ModeKey::Replace, ModeData::Replace);
+        self.mode_history
             .insert(ModeKey::Error, ModeData::Error(Error::default()));
         self.mode_history.insert(ModeKey::Exit, ModeData::Exit);
         self.mode_history.insert(

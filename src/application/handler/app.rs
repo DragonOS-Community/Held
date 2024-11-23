@@ -52,3 +52,8 @@ pub fn to_delete_mode(app: &mut Application) -> Result<()> {
     app.switch_mode(ModeKey::Delete);
     Ok(())
 }
+
+pub fn to_replace_mode(app: &mut Application) -> Result<()> {
+    app.switch_mode(ModeKey::Replace);
+    Ok(())
+}

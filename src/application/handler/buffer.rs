@@ -16,6 +16,20 @@ pub fn insert_char(app: &mut Application) -> Result<()> {
     Ok(())
 }
 
+pub fn insert_char_on_replace(app: &mut Application) -> Result<()> {
+    if let Some(key) = app.monitor.last_key {
+        if let KeyCode::Char(c) = key.code {
+            app.workspace
+                .current_buffer
+                .as_mut()
+                .unwrap()
+                .replace_on_cursor(c.to_string());
+            cursor::move_right(app)?;
+        }
+    }
+    Ok(())
+}
+
 pub fn new_line(app: &mut Application) -> Result<()> {
     if let Some(ref mut buffer) = app.workspace.current_buffer {
         buffer.insert('\n');

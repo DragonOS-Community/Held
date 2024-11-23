@@ -10,6 +10,7 @@ use insert::InsertRenderer;
 use linked_hash_map::LinkedHashMap;
 use normal::NormalRenderer;
 use search::{SearchData, SearchRenderer};
+use replace::ReplaceRenderer;
 use smallvec::SmallVec;
 use strum::EnumIter;
 use workspace::{WorkspaceModeData, WorkspaceRender};
@@ -26,6 +27,7 @@ mod insert;
 pub mod normal;
 pub mod workspace;
 pub mod search;
+mod replace;
 
 pub enum ModeData {
     Normal,
@@ -35,7 +37,7 @@ pub enum ModeData {
     Command(CommandData),
     Workspace(WorkspaceModeData),
     Search(SearchData),
-    Delete, // Other(OtherData)
+    Delete, Replace, // Other(OtherData)
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, EnumIter)]
@@ -48,6 +50,7 @@ pub enum ModeKey {
     Workspace,
     Search,
     Delete,
+    Replace,
 }
 
 impl ModeKey {
@@ -59,6 +62,7 @@ impl ModeKey {
             ModeKey::Workspace => Some("workspace".into()),
             ModeKey::Search => Some("search".into()),
             ModeKey::Delete => Some("delete".into()),
+            ModeKey::Replace => Some("replace".into()),
             _ => None,
         }
     }
@@ -157,6 +161,7 @@ impl ModeRenderer for ModeRouter {
             ModeData::Command(_) => CommandRenderer::render(workspace, monitor, mode),
             ModeData::Workspace(_) => WorkspaceRender::render(workspace, monitor, mode),
             ModeData::Search(_) => SearchRenderer::render(workspace, monitor, mode),
+            ModeData::Replace => ReplaceRenderer::render(workspace, monitor, mode),
             ModeData::Exit => todo!(),
             ModeData::Delete => DeleteRenderer::render(workspace, monitor, mode),
         }

@@ -36,6 +36,9 @@ pub fn locate_next_words_begin(count: usize, str: &str, current_pos: &Position) 
 }
 
 pub fn locate_previous_words(count: usize, str: &str, current_pos: &Position) -> Position {
+    if str.len() == 0 {
+        return *current_pos;
+    }
     let s = str.as_bytes();
     let mut left = s.len() - 1;
     let mut right = left;
@@ -61,10 +64,10 @@ pub fn locate_previous_words(count: usize, str: &str, current_pos: &Position) ->
     let new_offset = if let Some(back_offset) = str[left..].find('\n') {
         // back_offset为目标位置到行尾的距离
         // new_line_len - back_offset为目标位置到行首的距离
-        new_line_len - back_offset
+        new_line_len - back_offset + 1
     } else {
         // 新旧行之间没有换行符
-        current_pos.offset - (s.len() - left)
+        current_pos.offset - (s.len() - 1 - left)
     };
     return Position::new(new_line, new_offset);
 }

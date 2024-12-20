@@ -1,8 +1,6 @@
-use crate::view::{
-    colors::colors::Colors,
-    status_data::{buffer_status_data, StatusLineData},
-    style::CharStyle,
-};
+use crate::view::status_data::{buffer_status_data, StatusLineData};
+use held_core::view::colors::Colors;
+use held_core::view::style::CharStyle;
 
 use super::ModeRenderer;
 

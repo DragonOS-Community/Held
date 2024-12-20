@@ -1,10 +1,7 @@
 use std::{collections::HashMap, ffi::OsStr, fs::read_to_string, path::PathBuf};
 
 use crate::{
-    application::{
-        mode::{ModeData, ModeKey},
-        Application,
-    },
+    application::{mode::ModeKey, Application},
     errors::*,
 };
 use crossterm::event::{Event, KeyEvent, KeyEventKind, KeyModifiers};

@@ -9,8 +9,8 @@ use error_chain::bail;
 use insert::InsertRenderer;
 use linked_hash_map::LinkedHashMap;
 use normal::NormalRenderer;
-use search::{SearchData, SearchRenderer};
 use replace::ReplaceRenderer;
+use search::{SearchData, SearchRenderer};
 use smallvec::SmallVec;
 use strum::EnumIter;
 use workspace::{WorkspaceModeData, WorkspaceRender};
@@ -25,8 +25,8 @@ pub mod error;
 mod insert;
 pub mod motion;
 pub mod normal;
-pub mod search;
 mod replace;
+pub mod search;
 pub mod workspace;
 
 pub enum ModeData {
@@ -37,7 +37,8 @@ pub enum ModeData {
     Command(CommandData),
     Workspace(WorkspaceModeData),
     Search(SearchData),
-    Delete, Replace, // Other(OtherData)
+    Delete,
+    Replace, // Other(OtherData)
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, EnumIter)]

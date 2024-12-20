@@ -1,5 +1,4 @@
 use crossterm::event::KeyCode;
-use held_core::utils::distance::Distance;
 use held_core::utils::position::Position;
 use held_core::utils::range::Range;
 use unicode_segmentation::UnicodeSegmentation;
@@ -136,12 +135,12 @@ pub fn move_to_next_words(app: &mut Application) -> Result<()> {
 
 pub fn move_to_prev_words(app: &mut Application) -> Result<()> {
     if let Some(buffer) = &mut app.workspace.current_buffer {
-        let current_pos = buffer.cursor.position
-            + Distance {
-                lines: 0,
-                offset: 1,
-            }; // 由于是左闭右开区间，所以需要向后移动一个字符
-               // 从当前位置向前搜索
+        let current_pos = buffer.cursor.position;
+        // + Distance {
+        //     lines: 0,
+        //     offset: 1,
+        // }; // 由于是左闭右开区间，所以需要向后移动一个字符
+        // 从当前位置向前搜索
         let search_range =
             if let Some(str) = buffer.read(&Range::new(Position::new(0, 0), current_pos)) {
                 str

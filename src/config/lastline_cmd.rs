@@ -6,7 +6,7 @@ use crate::utils::{
     buffer::LineState,
     ui::{
         event::WarpUiCallBackType,
-        uicore::{UiCore, APP_INFO, CONTENT_WINSIZE},
+        uicore::{UiCore, APP_INTERNAL_INFOMATION, CONTENT_WINSIZE},
         InfoLevel,
     },
 };
@@ -63,7 +63,7 @@ impl LastLineCommand {
 
             ret
         } else {
-            let mut info = APP_INFO.lock().unwrap();
+            let mut info = APP_INTERNAL_INFOMATION.lock().unwrap();
             info.level = InfoLevel::Info;
             info.info = NOT_FOUNT_CMD.to_string();
             return WarpUiCallBackType::None;
@@ -82,7 +82,7 @@ impl LastLineCommand {
         if ui.edited() {
             // 编辑过但不保存？
             // 更新警示信息
-            let mut info = APP_INFO.lock().unwrap();
+            let mut info = APP_INTERNAL_INFOMATION.lock().unwrap();
             info.level = InfoLevel::Warn;
             info.info = EDITED_NO_STORE.to_string();
             return WarpUiCallBackType::None;
@@ -96,7 +96,7 @@ impl LastLineCommand {
 
     fn goto(ui: &mut MutexGuard<UiCore>, args: &str) -> WarpUiCallBackType {
         if args.is_empty() {
-            let mut info = APP_INFO.lock().unwrap();
+            let mut info = APP_INTERNAL_INFOMATION.lock().unwrap();
             info.level = InfoLevel::Info;
             info.info = "Useage: {goto}|{gt} {row}{' '|','|';'|':'|'/'}{col}".to_string();
             return WarpUiCallBackType::None;
@@ -112,7 +112,7 @@ impl LastLineCommand {
         };
 
         if y.is_err() {
-            let mut info = APP_INFO.lock().unwrap();
+            let mut info = APP_INTERNAL_INFOMATION.lock().unwrap();
             info.level = InfoLevel::Info;
             info.info = "Useage: goto {row}({' '|','|';'|':'|'/'}{col})".to_string();
             return WarpUiCallBackType::None;
@@ -170,7 +170,7 @@ impl LastLineCommand {
         for s in args {
             let line = usize::from_str_radix(s, 10);
             if line.is_err() {
-                APP_INFO.lock().unwrap().info = format!("\"{s}\" is not a number");
+                APP_INTERNAL_INFOMATION.lock().unwrap().info = format!("\"{s}\" is not a number");
                 return WarpUiCallBackType::None;
             }
 
@@ -196,7 +196,8 @@ impl LastLineCommand {
                 for arg in args {
                     let line = usize::from_str_radix(arg, 10);
                     if line.is_err() {
-                        APP_INFO.lock().unwrap().info = format!("\"{arg}\" is not a number");
+                        APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                            format!("\"{arg}\" is not a number");
                         return WarpUiCallBackType::None;
                     }
 
@@ -224,7 +225,8 @@ impl LastLineCommand {
                 for arg in args {
                     let line = usize::from_str_radix(arg, 10);
                     if line.is_err() {
-                        APP_INFO.lock().unwrap().info = format!("\"{arg}\" is not a number");
+                        APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                            format!("\"{arg}\" is not a number");
                         return WarpUiCallBackType::None;
                     }
 
@@ -252,7 +254,8 @@ impl LastLineCommand {
                 for arg in args {
                     let line = usize::from_str_radix(arg, 10);
                     if line.is_err() {
-                        APP_INFO.lock().unwrap().info = format!("\"{arg}\" is not a number");
+                        APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                            format!("\"{arg}\" is not a number");
                         return WarpUiCallBackType::None;
                     }
 
@@ -273,7 +276,8 @@ impl LastLineCommand {
                 let offset = ui.buffer.offset() + ui.cursor.y() as usize;
                 let count = ui.buffer.delete_lines(offset, offset + 1);
                 if count != 0 {
-                    APP_INFO.lock().unwrap().info = format!("Successfully deleted {count} row");
+                    APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                        format!("Successfully deleted {count} row");
                 }
                 ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)
                     .unwrap();
@@ -282,7 +286,8 @@ impl LastLineCommand {
             1 => {
                 let line = usize::from_str_radix(args[0], 10);
                 if line.is_err() {
-                    APP_INFO.lock().unwrap().info = format!("\"{}\" is not a number", args[0]);
+                    APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                        format!("\"{}\" is not a number", args[0]);
                     return WarpUiCallBackType::None;
                 }
 
@@ -291,7 +296,8 @@ impl LastLineCommand {
                 let offset = ui.buffer.offset() + line;
                 let count = ui.buffer.delete_lines(offset, offset + 1);
                 if count != 0 {
-                    APP_INFO.lock().unwrap().info = format!("Successfully deleted {count} row");
+                    APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                        format!("Successfully deleted {count} row");
                 }
                 ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)
                     .unwrap();
@@ -302,14 +308,15 @@ impl LastLineCommand {
                 let end = usize::from_str_radix(args[1], 10);
 
                 if start.is_err() || end.is_err() {
-                    APP_INFO.lock().unwrap().info =
+                    APP_INTERNAL_INFOMATION.lock().unwrap().info =
                         "Useage: (dl)|(delete) {start}({'-'}{end})".to_string();
                     return WarpUiCallBackType::None;
                 }
 
                 let count = ui.buffer.delete_lines(start.unwrap() - 1, end.unwrap() - 1);
                 if count != 0 {
-                    APP_INFO.lock().unwrap().info = format!("Successfully deleted {count} row");
+                    APP_INTERNAL_INFOMATION.lock().unwrap().info =
+                        format!("Successfully deleted {count} row");
                 }
 
                 ui.render_content(0, CONTENT_WINSIZE.read().unwrap().rows as usize)

@@ -9,12 +9,12 @@ pub mod mode;
 pub mod uicore;
 
 #[derive(Debug)]
-pub struct AppInfo {
+pub struct AppInternalInfomation {
     pub level: InfoLevel,
     pub info: String,
 }
 
-impl AppInfo {
+impl AppInternalInfomation {
     pub fn reset(&mut self) {
         self.level = InfoLevel::Info;
         self.info = String::new();

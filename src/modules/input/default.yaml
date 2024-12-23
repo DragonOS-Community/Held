@@ -104,8 +104,8 @@ replace:
   up: cursor::move_up
   down: cursor::move_down
   ctrl-c: app::exit
-  ctrl-s: workspace::save_file
-  ctrl-z: workspace::undo
+  ctrl-s: buffer::save_file
+  ctrl-z: buffer::undo
   enter: 
     - buffer::new_line
     - cursor::move_down

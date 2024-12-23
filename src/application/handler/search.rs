@@ -1,8 +1,8 @@
 use crate::application::mode::ModeData;
 use crate::application::Application;
 use crate::errors::*;
-use crate::util::{position::Position, range::Range};
 use crossterm::event::KeyCode;
+use held_core::utils::{position::Position, range::Range};
 
 pub fn exec_search(app: &mut Application) -> Result<()> {
     if let ModeData::Search(ref mut search_data) = app.mode {

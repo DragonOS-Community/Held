@@ -1,12 +1,11 @@
 use super::ModeRenderer;
-use crate::util::range::Range;
 use crate::{
     errors::*,
-    view::{
-        colors::colors::Colors,
-        status_data::{buffer_status_data, StatusLineData},
-        style::CharStyle,
-    },
+    view::status_data::{buffer_status_data, StatusLineData},
+};
+use held_core::{
+    utils::range::Range,
+    view::{colors::Colors, style::CharStyle},
 };
 pub(super) struct SearchRenderer;
 
@@ -24,12 +23,19 @@ impl ModeRenderer for SearchRenderer {
             if let super::ModeData::Search(ref search_data) = _mode {
                 let highlight_search_string = search_data.search_result.clone();
 
-                let highlight_search_string_slice: Option<&[Range]> =
+                let collected_ranges: Vec<(Range, CharStyle, Colors)> =
                     if !highlight_search_string.is_empty() {
-                        Some(
-                            &highlight_search_string[search_data.search_result_index
-                                ..search_data.search_result_index + 1],
-                        )
+                        highlight_search_string
+                            .iter()
+                            .map(|range| (range.clone(), CharStyle::Bold, Colors::Inverted))
+                            .collect()
+                    } else {
+                        Vec::new()
+                    };
+
+                let highlight_search_string_slice: Option<&[(Range, CharStyle, Colors)]> =
+                    if !collected_ranges.is_empty() {
+                        Some(collected_ranges.as_slice())
                     } else {
                         None
                     };

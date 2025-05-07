@@ -24,7 +24,7 @@ use crate::errors::*;
 pub static mut APPLICATION: Option<Application> = None;
 
 pub fn get_application() -> &'static mut Application {
-    unsafe { APPLICATION.as_mut().unwrap()}
+    unsafe { APPLICATION.as_mut().unwrap() }
 }
 
 fn main() -> Result<()> {

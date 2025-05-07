@@ -97,7 +97,6 @@ impl<'a> Presenter<'a> {
             };
 
             let len = content.len();
-            warn!("line {line}, offset {offset}, content {content}");
             self.print(&Position { line, offset }, data.style, data.color, content);
             offset += len;
         }

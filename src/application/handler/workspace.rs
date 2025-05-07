@@ -4,7 +4,11 @@ use crate::errors::*;
 
 pub fn to_normal_mode(app: &mut Application) -> Result<()> {
     if let ModeData::Workspace(ref mode) = app.mode {
-        app.workspace.select_buffer(mode.prev_buffer_id);
+        if let Some(buffer_id) = mode.prev_buffer_id {
+            app.workspace.select_buffer(buffer_id);
+        } else {
+            return Ok(());
+        }
     }
     app.switch_mode(ModeKey::Normal);
     Ok(())

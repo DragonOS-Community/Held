@@ -1,6 +1,4 @@
 use crate::errors::*;
-use app_dirs2::{app_dir, AppDataType};
-use error_chain::bail;
 use std::{
     collections::BTreeMap,
     ffi::OsStr,

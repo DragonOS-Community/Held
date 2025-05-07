@@ -78,7 +78,7 @@ impl Workspace {
                 buffer
             };
 
-            workspace.add_buffer(buffer);
+            workspace.add_buffer_with_select(buffer);
             monitor.init_buffer(workspace.current_buffer.as_mut().unwrap())?;
         }
 
@@ -118,14 +118,18 @@ impl Workspace {
         }
 
         self.buffers.insert(id, buffer);
-        self.select_buffer(id);
-
-        if let Some(buffer) = self.current_buffer.as_ref() {
+        if let Some(buffer) = self.get_buffer(id) {
             if buffer.syntax_definition.is_none() {
-                let _ = self.update_current_syntax();
+                let _ = self.update_buffer_syntax(id);
             }
         }
 
+        return id;
+    }
+
+    pub fn add_buffer_with_select(&mut self, buffer: Buffer) -> usize {
+        let id = self.add_buffer(buffer);
+        self.select_buffer(id);
         return id;
     }
 
@@ -141,6 +145,15 @@ impl Workspace {
             }
         }
         return self.buffers.get(&id);
+    }
+
+    pub fn get_buffer_mut(&mut self, id: usize) -> Option<&mut Buffer> {
+        if let Some(ref mut buffer) = self.current_buffer {
+            if buffer.id.unwrap() == id {
+                return Some(buffer);
+            }
+        }
+        return self.buffers.get_mut(&id);
     }
 
     pub fn get_buffer_with_ino(&self, ino: u64) -> Option<&Buffer> {
@@ -169,17 +182,18 @@ impl Workspace {
         false
     }
 
-    pub fn update_current_syntax(&mut self) -> Result<()> {
-        let buffer = self
-            .current_buffer
-            .as_mut()
-            .ok_or(ErrorKind::EmptyWorkspace)?;
+    fn update_buffer_syntax(&mut self, id: usize) -> Result<()> {
+        let buffer = self.get_buffer(id).ok_or(ErrorKind::EmptyWorkspace)?;
         let definition = buffer
             .file_extension()
             .and_then(|ex| self.syntax_set.find_syntax_by_extension(&ex))
             .or_else(|| Some(self.syntax_set.find_syntax_plain_text()))
             .cloned();
-        buffer.syntax_definition = definition;
+
+        drop(buffer);
+        self.get_buffer_mut(id)
+            .ok_or(ErrorKind::EmptyWorkspace)?
+            .syntax_definition = definition;
 
         Ok(())
     }

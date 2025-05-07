@@ -1,12 +1,12 @@
-use crate::{errors::*, utils::ui::uicore::APP_INTERNAL_INFOMATION};
-use app_dirs2::{app_dir, AppDataType, AppInfo};
+use crate::errors::*;
+use app_dirs2::{app_dir, AppDataType};
 use std::{
     cell::RefCell,
     path::{Path, PathBuf},
     rc::Rc,
 };
 use yaml::YamlPerferences;
-use yaml_rust::{Yaml, YamlLoader};
+use yaml_rust::YamlLoader;
 
 use super::APP_INFO;
 
@@ -135,7 +135,7 @@ impl Perferences for DummyPerferences {
         todo!()
     }
 
-    fn syntax_definition_name(&self, path: &Path) -> Option<String> {
+    fn syntax_definition_name(&self, _path: &Path) -> Option<String> {
         todo!()
     }
 

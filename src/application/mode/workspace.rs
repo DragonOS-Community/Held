@@ -24,7 +24,7 @@ pub struct WorkspaceModeData {
     max_index: usize,
     opened_dir_inos: HashSet<u64>,
     buffer_id: usize,
-    pub prev_buffer_id: usize,
+    pub prev_buffer_id: Option<usize>,
     highlight_ranges: Vec<(Range, CharStyle, Colors)>,
 }
 
@@ -37,19 +37,23 @@ impl WorkspaceModeData {
         let mut opened_dir_inos = HashSet::new();
         opened_dir_inos.insert(workspace.path.metadata()?.ino());
 
-        let prev_buffer_id = workspace.current_buffer.as_ref().unwrap().id()?;
-
+        let mut prev_buffer_id = None;
+        if let Some(current_buffer) = workspace.current_buffer.as_ref() {
+            prev_buffer_id = Some(current_buffer.id()?);
+        }
         let buffer = Buffer::new();
         let buffer_id = workspace.add_buffer(buffer);
-        monitor.init_buffer(workspace.current_buffer.as_mut().unwrap())?;
+        monitor.init_buffer(workspace.get_buffer_mut(buffer_id).unwrap())?;
 
-        workspace.select_buffer(prev_buffer_id);
+        if let Some(id) = prev_buffer_id {
+            workspace.select_buffer(id);
+        }
 
         Ok(WorkspaceModeData {
             path: workspace.path.clone(),
             selected_index: 0,
             opened_dir_inos,
-            buffer_id: buffer_id,
+            buffer_id,
             prev_buffer_id,
             highlight_ranges: Vec::new(),
             current_render_index: 0,
@@ -276,10 +280,9 @@ impl WorkspaceModeData {
             Ok(false)
         } else {
             let buffer = Buffer::from_file(&self.selected_path)?;
-            let id = workspace.add_buffer(buffer);
-            workspace.select_buffer(id);
+            let id = workspace.add_buffer_with_select(buffer);
             monitor.init_buffer(workspace.current_buffer.as_mut().unwrap())?;
-            self.prev_buffer_id = id;
+            self.prev_buffer_id = Some(id);
             Ok(true)
         }
     }

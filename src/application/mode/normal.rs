@@ -16,7 +16,6 @@ impl ModeRenderer for NormalRenderer {
         let mut presenter = monitor.build_presenter()?;
 
         if let Some(buffer) = &workspace.current_buffer {
-            warn!("normal buffer id: {}", buffer.id.unwrap());
             let data = buffer.data();
             presenter.print_buffer(buffer, &data, &workspace.syntax_set, None, None)?;
 

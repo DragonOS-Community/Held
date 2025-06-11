@@ -1,13 +1,5 @@
-use std::path::PathBuf;
-
-use super::{
-    Perferences, APP_INFO, LINE_WRAPPING_KEY, SOFT_TAB_KEY, TAB_WIDTH_KEY, THEME_KET, THEME_PATH,
-};
-use crate::{
-    errors::*,
-    modules::perferences::{LANGUAGE_KEY, LANGUAGE_SYNTAX_KEY, SYNTAX_PATH},
-};
-use app_dirs2::{app_dir, AppDataType};
+use super::{Perferences, LINE_WRAPPING_KEY, SOFT_TAB_KEY, TAB_WIDTH_KEY, THEME_KET};
+use crate::modules::perferences::{LANGUAGE_KEY, LANGUAGE_SYNTAX_KEY};
 use yaml_rust::Yaml;
 
 pub struct YamlPerferences {

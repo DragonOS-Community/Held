@@ -1,4 +1,3 @@
-use crate::application::mode::command::CommandData;
 use crate::application::mode::{ModeData, ModeKey};
 use crate::application::Application;
 use crate::errors::*;

@@ -1,4 +1,4 @@
-use super::{get_application, APPLICATION};
+use super::get_application;
 
 pub trait App {
     fn exit(&mut self);

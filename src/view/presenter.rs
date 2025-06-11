@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cell::RefCell, fmt::Debug, rc::Rc};
+use std::{borrow::Cow, fmt::Debug};
 
 use super::{
     colors::map::ColorMap,

@@ -59,11 +59,12 @@ impl CachedRenderBuffer {
 
             if !equal {
                 let mut cache_cell = CachedCell::default();
-                let content_len = cell_content.len();
+                let grapheme_count = cell.content.graphemes(true).count().max(1);
                 cache_cell.colors = cell.colors;
                 cache_cell.style = cell.style;
                 cache_cell.content = cell_content;
-                for i in (index + 1)..(index + content_len) {
+                let end_index = (index + grapheme_count).min(self.cells.len());
+                for i in (index + 1)..end_index {
                     self.cells[i] = None
                 }
 

@@ -1,5 +1,3 @@
-use std::str::Chars;
-
 use cell::Cell;
 
 use crate::utils::{position::Position, rectangle::Rectangle};

@@ -12,7 +12,7 @@ use mode::{
 use smallvec::SmallVec;
 use state::ApplicationStateData;
 
-use std::{cell::RefCell, collections::HashMap, mem, rc::Rc, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, mem, rc::Rc};
 
 use crate::{
     modules::perferences::{Perferences, PerferencesManager},

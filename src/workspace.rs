@@ -190,7 +190,6 @@ impl Workspace {
             .or_else(|| Some(self.syntax_set.find_syntax_plain_text()))
             .cloned();
 
-        drop(buffer);
         self.get_buffer_mut(id)
             .ok_or(ErrorKind::EmptyWorkspace)?
             .syntax_definition = definition;
